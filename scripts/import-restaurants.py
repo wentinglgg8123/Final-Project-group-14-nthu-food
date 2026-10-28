@@ -22,7 +22,7 @@ def import_restaurants(filename):
                 d[''.join(filter(str.isalpha, c.get('r')))] = value
             if not d.get('A'): continue
             data.append(dict(id=i, name=d['A'], location=d.get('B', ''), types=[s.strip() for s in d.get('C','').split(',')], price=float(d['D']), hours=d.get('J',''), specialHours=d.get('K',''), occasions=[label for col,label in [('E','一人食'),('F','約會'),('G','聚餐'),('H','快速吃'),('I','慢慢吃')] if d.get(col)=='O']))
-    (Path(__file__).resolve().parents[1] / 'src' / 'restaurants.json').write_text(json.dumps(data, ensure_ascii=False, indent=2)+'\n')
+    (Path(__file__).resolve().parents[1] / 'data' / 'restaurants.json').write_text(json.dumps(data, ensure_ascii=False, indent=2)+'\n')
     print(f'Imported {len(data)} restaurants')
 
 if __name__ == '__main__':
