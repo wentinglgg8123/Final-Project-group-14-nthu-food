@@ -45,3 +45,26 @@ python scripts/import-restaurants.py '/path/to/清大食物 (1).xlsx'
 對每位用餐者計算：預算內價格得分 1，超出每 1.5 級距線性遞減至 0；步行可接受時得分為 `1 − 0.25 × 步行分鐘 / 可接受分鐘`，超過時為 `max(0, 0.6 − 超出分鐘 / 15)`；料理不限或符合得分 1，不符合為 0.15。
 
 先對全員各項取平均，再按三個權重加權，換算為 0–100 分、四捨五入。權重皆為 0 時採等權平均。平手依步行時間、價格級距、原始資料順序排序。推薦分數代表條件符合程度，並非餐廳評價。
+
+## 部署至 Streamlit Community Cloud
+
+此專案的主要介面是 JavaScript 網站。`scripts/import-restaurants.py` 僅供匯入 Excel，**不是網站入口**。若將它選為 Streamlit 的入口，原版本會因缺少命令列參數產生 `IndexError`。
+
+已提供可沿用完整網站介面的 Streamlit 入口：
+
+1. 在 Streamlit Cloud 建立或重新部署 App，選擇此 GitHub 儲存庫及 `main` 分支。
+2. **Main file path 請選 `streamlit_app.py`**，不要選 `scripts/import-restaurants.py`。
+3. 依 `requirements.txt` 自動安裝依賴，不需要提供 Excel 路徑、API 金鑰或執行 npm。
+4. 若現有 App 仍指向匯入腳本，請更改部署入口；若介面無法修改入口，請以正確入口重新建立 App。
+
+本機驗證：
+
+```sh
+pip install -r requirements.txt
+python -m unittest discover -s tests -p 'test_*.py'
+streamlit run streamlit_app.py
+```
+
+`npm run build` 會同時生成 `dist/` 與 `streamlit_assets/site.html`。後者為自包含網站，需一起提交到 GitHub，讓 Streamlit 不必在伺服器安裝 Node.js。修改前端或餐廳資料後，請重新建置並提交這個檔案。Streamlit 內透過自動調整高度的嵌入頁面顯示網站，收藏依瀏覽器的儲存政策保存。若瀏覽器限制嵌入頁面儲存，收藏僅限本次開啟。
+
+如採 Vercel、Netlify 或其他靜態網站平台，建置命令仍為 `npm run build`，發布目錄為 `dist`，不需使用 Streamlit。
