@@ -6,9 +6,17 @@ import streamlit as st
 
 from foodguide.data import AREAS, PRICE_LEVELS, coin_text, cuisine_types, load_restaurants, parse_favorites
 from foodguide.recommend import Diner, Weights, recommend, taiwan_now
+from foodguide.navigation import GROUP_INPUTS, preserve_inputs
 from foodguide.views import hero, load_styles, maps_button, restaurant_body, show_details
 
 st.set_page_config(page_title='清食指南｜清大餐廳選擇器', page_icon='🍚', layout='wide')
+preserve_inputs()
+workflow = st.radio('使用模式', ('多人推薦', '搜尋與抽選'), key='workflow', horizontal=True)
+if workflow == '搜尋與抽選':
+    from app import main as explore
+    explore(embedded=True)
+    st.stop()
+
 restaurants = load_restaurants()
 valid_ids = {restaurant['id'] for restaurant in restaurants}
 
@@ -43,7 +51,7 @@ def remove_diner(diner_id):
 def reset_filters():
     """Reset filters before widgets render; keep the visitor's favorites."""
     for key in list(st.session_state):
-        if key.startswith('diner_') or key not in ('favorites',):
+        if key.startswith('diner_') or key in GROUP_INPUTS | {'diners', 'next_diner'}:
             del st.session_state[key]
     initialize()
 

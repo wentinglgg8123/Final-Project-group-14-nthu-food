@@ -1,0 +1,15 @@
+[project]
+name = "nthu-food-guide"
+version = "2.1.0"
+description = "清食指南：多人加權推薦、Excel 美食探索與隨機抽選"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = ["browser: real Chromium browser checks (run separately)"]
+addopts = "-m 'not browser'"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

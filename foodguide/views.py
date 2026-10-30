@@ -70,4 +70,23 @@ def show_details(restaurant):
     for reason in restaurant['reasons']:
         st.write(f'• {reason}')
     maps_button(restaurant, 'detail-map')
+    detail_reviews(restaurant)
     st.caption('Google Maps 會以店名與清大／清夜區域開啟查詢；連鎖店請確認分店。路線、距離與即時營業狀態請以地圖及店家公告為準。')
+
+
+def detail_reviews(restaurant):
+    """Use the same restaurant identity for group recommendations and explorer reviews."""
+    from app import PageReviews
+    from food_picker.defaults import load_default_catalog
+    from food_picker.review_ui import render_reviews
+
+    record = next((item for item in load_default_catalog().restaurants
+                   if item.name == restaurant['name'] and item.location == restaurant['location']), None)
+    if record is None:
+        return
+    st.divider()
+    access = PageReviews()
+    rows = access.load([record])
+    access.show_status()
+    render_reviews(record, access.store, rows.get(record.id, []),
+                   load_error=access.failed, context='group_details')

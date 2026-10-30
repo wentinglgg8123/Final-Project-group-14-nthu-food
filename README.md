@@ -1,6 +1,6 @@
 # 清食指南｜清大學餐及周邊餐廳選擇器
 
-以 Python／Streamlit 實作的多人選餐網站，包含附件「清大食物 (1).xlsx」的 14 間餐廳。不需要 Node.js、JavaScript 建置、API 金鑰或額外資料庫服務。
+以 Python／Streamlit 實作的多人選餐網站，整合 `a-easy-food-selector` 的探索功能，名稱保留「清食指南」，包含附件「清大食物 (1).xlsx」的 14 間餐廳。不需要 Node.js、JavaScript 建置、API 金鑰或額外資料庫服務。
 
 ## 執行與部署
 
@@ -9,7 +9,7 @@
 ```sh
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install --require-hashes -r requirements.txt
 streamlit run streamlit_app.py
 ```
 
@@ -34,6 +34,33 @@ Streamlit Community Cloud 設定：
 - 桌面側欄輸入條件；手機可由左上角展開側欄。
 
 收藏編號保留在網址的 `favorites` 查詢參數，重新整理或加入書籤後可保留，不需登入。分享網址也會分享其收藏編號。姓名、用餐條件僅在目前 Streamlit 工作階段內使用，不存入網址或持久資料庫。
+
+## 搜尋與抽選模式
+
+最上方可切換「多人推薦」與「搜尋與抽選」。前者保留原本多人加權、收藏、指定時間營業篩選；後者移植下列功能：
+
+- 頂部店名即時搜尋：停止輸入約 0.35 秒後查詢，不需按 Enter。支援正規化及讀音／拼字近似建議，例如「麥當牢」可找到「麥當勞」。搜尋每頁 3 間，並獨立於下方進階篩選。
+- 地點、料理、整數金幣等級複選標籤，提供各組全選／取消及全部取消；組內符合任一，組間需同時符合。半枚級距同時符合相鄰整數組，例如 1.5 符合 1 或 2 枚。
+- 用餐情境與上菜節奏可複選，需同時符合所有已選情境／節奏；歇業標記可顯示供查詢，但不參與抽選。
+- 均等隨機抽選，有多間時不連續推薦同一家；保留最近 3 間不同餐廳。
+- 篩選名單每頁 6 間、分頁瀏覽、完整表格、Google Maps 店家連結、匯出篩選結果及下載完整原始 Excel。
+- 5 MB 以內的 `.xlsx` 匯入、範本下載、驗證提醒與恢復內建名單；支援原始英文欄位、`Gener` 拼法、中文欄位及一般／特殊營業時間。價格級距支援 1–5，含半枚。
+- 店家公開評論、最新 3 則留言、暱稱與 1–5 顆星（每 0.5 顆）的評分；搜尋、抽選、名單及多人推薦詳情使用相同店家識別。
+
+「搜尋與抽選」匯入的名單只影響該訪客在此模式的當前工作階段；「多人推薦」仍使用原本 14 間資料。切換模式會保留用餐夥伴輸入、搜尋與篩選草稿；重新整理後暫時匯入的名單會回到內建資料。抽選模式顯示原始營業時間文字，不自動判斷目前是否營業；需要指定時間營業篩選時請使用多人推薦。
+
+兩個模式的內建資料分別為 `data/restaurants.json` 與 `data/food.xlsx`，均來自本專案原始附件的相同 14 間餐廳，沒有替換成來源專案的 10 間名單。價格保留抽象金幣等級，不加入未提供的新台幣價格範圍。
+
+## 啟用公開評論與評分（Supabase）
+
+篩選、搜尋、Excel 與抽選不需要資料庫。跨訪客永久保存評論需要另外設定 Supabase；沒有設定時頁面會明確顯示「評論尚未啟用」，停用發布按鈕，不會假裝已保存。
+
+1. 建立 Supabase 專案，在 SQL Editor 執行 `sql/reviews.sql`。新專案已包含半星評分結構；若已有舊版評論資料表，依 `sql/upgrade_ratings.sql` 升級。
+2. 在 Streamlit Cloud 的應用程式設定 → Secrets，依 `.streamlit/secrets.toml.example` 加入 `[reviews]` 的 `url` 與 `service_role_key`。金鑰使用伺服器的 `service_role` 金鑰，不是公開 anon key。
+3. 本機可使用 `.streamlit/secrets.toml`，或設定 `SUPABASE_URL` 與 `SUPABASE_SERVICE_ROLE_KEY`。正式金鑰不可提交至 Git，亦勿貼在聊天中。
+4. 儲存後重新啟動應用程式，送出一則測試評論，再以另一個瀏覽器工作階段確認可讀取，才表示實際保存成功。
+
+程式已包含評分、重試去重、錯誤訊息與輸入保留；自動測試使用明確的測試用 HTTP 後端驗證跨訪客讀寫，不代表已有真實 Supabase 連線。目前環境未提供評論連線設定，尚未驗證正式資料庫。
 
 ## 金幣價格
 
@@ -63,7 +90,7 @@ Streamlit Community Cloud 設定：
 python scripts/import-restaurants.py '/path/to/清大食物 (1).xlsx'
 ```
 
-只讀取表格資料，不執行附件內指令。重新匯入會更新餐廳 JSON；手動新增的 `mapsUrl` 請保留並重新補入。匯入後不需要建置前端。
+只讀取表格資料，不執行附件內指令。重新匯入會同步更新餐廳 JSON 與內建 Excel；手動新增的 `mapsUrl` 請保留並重新補入。匯入後不需要建置前端。
 
 ## 推薦演算法
 
@@ -83,7 +110,20 @@ python scripts/import-restaurants.py '/path/to/清大食物 (1).xlsx'
 測試：
 
 ```sh
-python -m unittest discover -s tests -p 'test_*.py'
+python -m pytest -m 'not browser'
+python tools/language_report.py
 ```
 
 涵蓋多人預算、推薦排序、權重、區域、時區、公休、分段時間、金幣數量、店家地圖網址、收藏、搜尋、資料庫、條件重設與詳情互動。瀏覽器另驗證半枚金幣裁切、手機排版及地圖連結。
+
+若有 Chromium，可額外執行真實桌面／手機瀏覽器驗證：
+
+```sh
+python -m pytest -m browser tests/test_browser.py
+```
+
+測試包含即時錯字搜尋、分頁、非重複抽選、實際上傳 Excel、半枚金幣、匯出並重新讀取下載檔案、恢復內建名單及手機寬度。
+
+## 功能來源
+
+探索功能移植自同一位使用者的 [wentinglgg8123/a-easy-food-selector](https://github.com/wentinglgg8123/a-easy-food-selector)，來源版本 `c0beaf9ab6b76ccbb693d8e26a80b2c98943a048`。保留此專案網站名稱與 14 間餐廳，並接入原有多人推薦。`app.py` 為探索模式，`food_picker/` 為 Excel、搜尋、篩選、評論與呈現模組；對外入口仍是 `streamlit_app.py`。
