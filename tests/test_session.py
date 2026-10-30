@@ -16,7 +16,7 @@ def test_visitors_have_independent_catalogs_and_recommendation_history():
     first.import_catalog(result, "我的名單.xlsx")
 
     assert first.filename == "我的名單.xlsx"
-    assert second.is_default and not second.is_demo and len(second.restaurants) == 14
+    assert second.is_default and not second.is_demo and len(second.restaurants) == 10
     assert second.selected is None and second.history == []
     assert first.restaurants is not second.restaurants
     result.restaurants.clear()
@@ -84,12 +84,12 @@ def test_reset_restores_real_catalog_and_discards_imported_catalog_state():
     session.reset()
 
     assert session.is_default and not session.is_demo and session.filename is None
-    assert len(session.restaurants) == 14
+    assert len(session.restaurants) == 10
     assert session.restaurants == original.restaurants
     assert session.warnings == original.warnings
     assert session.selected is None and session.history == []
     assert all(not restaurant.name.startswith("示範・") for restaurant in session.restaurants)
-    assert len(session.candidates(Filters())) == 14
+    assert len(session.candidates(Filters())) == 10
 
 
 def test_closed_restaurants_can_be_listed_but_are_never_recommended():
@@ -119,4 +119,4 @@ def test_existing_catalog_list_is_copied_when_creating_session():
     restaurants = load_default_catalog().restaurants
     session = PickerSession(restaurants=restaurants)
     restaurants.clear()
-    assert len(session.restaurants) == 14
+    assert len(session.restaurants) == 10

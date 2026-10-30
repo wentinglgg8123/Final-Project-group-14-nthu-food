@@ -7,7 +7,13 @@ from urllib.parse import urlencode
 from .catalog import location_label
 from .models import Restaurant
 
-PRICE_LEVEL_LABELS = {level: f'{level} 枚金幣' for level in range(1, 6)}
+PRICE_RANGES = {
+    1: "NT$0–100",
+    2: "NT$100–200",
+    3: "NT$200–300",
+    4: "NT$300–500",
+    5: "NT$500以上",
+}
 
 GENRE_ICONS = {
     "Steak": "🥩", "SouthEastAsian": "🍛", "Ramen": "🍜", "Noodles": "🍜",
@@ -48,6 +54,8 @@ def coin_label(level: float | None) -> str:
 
 
 def price_label(restaurant: Restaurant) -> str:
+    if restaurant.price_level in PRICE_RANGES:
+        return f"{coin_label(restaurant.price_level)} · {PRICE_RANGES[restaurant.price_level]}"
     if restaurant.price_level is not None and coin_label(restaurant.price_level) != "價格未提供":
         return coin_label(restaurant.price_level)
     return f"NT$ {number_label(restaurant.price)}" if restaurant.price is not None else "價格未提供"
@@ -73,12 +81,12 @@ def hours_html(restaurant: Restaurant) -> str:
 
 
 def price_legend_html() -> str:
-    """Explain abstract coin levels without inventing monetary price ranges."""
+    """Explain the requested coin ranges without suggesting a precise meal price."""
     items = ''.join(
         '<span class="price-legend-item" role="listitem">'
         f'<span class="price-legend-coins" aria-label="{level} 枚金幣">{coin_label(level)}</span>'
         f'<span>{escape(price_range)}</span></span>'
-        for level, price_range in PRICE_LEVEL_LABELS.items()
+        for level, price_range in PRICE_RANGES.items()
     )
     return f'<div class="price-legend" role="list" aria-label="金幣價格範圍說明">{items}</div>'
 

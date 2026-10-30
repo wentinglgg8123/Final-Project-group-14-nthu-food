@@ -406,22 +406,22 @@ def test_bundled_workbook_retains_all_rows_codes_and_fields():
         finally:
             workbook.close()
     restaurants = result.restaurants
-    assert len(restaurants) == 14
+    assert len(restaurants) == 10
     assert {restaurant.location for restaurant in restaurants} == {"小吃部", "清夜"}
-    assert len({category for restaurant in restaurants for category in restaurant_categories(restaurant)}) == 25
+    assert len({category for restaurant in restaurants for category in restaurant_categories(restaurant)}) == 18
     assert all(restaurant.area == "other" and restaurant.price is None for restaurant in restaurants)
     assert all(restaurant.latitude is None and restaurant.longitude is None for restaurant in restaurants)
     assert sum(restaurant.price_level == 1.5 for restaurant in restaurants) == 5
-    assert sum(restaurant.one_person for restaurant in restaurants) == 13
-    assert sum(restaurant.dating for restaurant in restaurants) == 3
-    assert sum(restaurant.gathering for restaurant in restaurants) == 4
-    assert sum(restaurant.fast_serve for restaurant in restaurants) == 11
-    assert sum(restaurant.slow_eat for restaurant in restaurants) == 2
-    assert sum(bool(restaurant.opening_hours) for restaurant in restaurants) == 13
-    assert sum(bool(restaurant.special_opening_hours) for restaurant in restaurants) == 3
+    assert sum(restaurant.one_person for restaurant in restaurants) == 9
+    assert sum(restaurant.dating for restaurant in restaurants) == 0
+    assert sum(restaurant.gathering for restaurant in restaurants) == 2
+    assert sum(restaurant.fast_serve for restaurant in restaurants) == 9
+    assert sum(restaurant.slow_eat for restaurant in restaurants) == 1
+    assert sum(bool(restaurant.opening_hours) for restaurant in restaurants) == 9
+    assert sum(bool(restaurant.special_opening_hours) for restaurant in restaurants) == 2
     closed = [restaurant for restaurant in restaurants if restaurant.is_closed]
     assert closed == []
-    assert len(filter_restaurants(restaurants, Filters())) == 14
+    assert len(filter_restaurants(restaurants, Filters())) == 10
     assert result.warnings == []
 
 

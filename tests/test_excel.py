@@ -195,7 +195,7 @@ def test_export_contains_only_requested_restaurants():
 def test_export_roundtrip_preserves_all_bundled_catalog_fields():
     original = load_default_catalog().restaurants
     imported = parse_excel(export_restaurants(original), "完整餐廳.xlsx").restaurants
-    assert len(original) == len(imported) == 14
+    assert len(original) == len(imported) == 10
     assert imported == original
 
 

@@ -7,14 +7,14 @@ import pytest
 
 from food_picker.defaults import load_default_catalog
 from food_picker.presentation import (
-    PRICE_LEVEL_LABELS, area_label, coin_label, feature_labels, map_url, price_label,
+    PRICE_RANGES, area_label, coin_label, feature_labels, map_url, price_label,
     price_html, price_legend_html, restaurant_card, table_rows,
 )
 
 
 def test_supplied_prices_display_coins_and_maps_search_exact_restaurant_name():
     restaurant = load_default_catalog().restaurants[0]
-    assert price_label(restaurant) == "🪙"
+    assert price_label(restaurant) == "🪙 · NT$0–100"
     assert restaurant.price_level == 1
     assert restaurant.price is None
     assert area_label(restaurant) == "小吃部"
@@ -24,11 +24,11 @@ def test_supplied_prices_display_coins_and_maps_search_exact_restaurant_name():
 
 
 @pytest.mark.parametrize("level, expected", [
-    (1, "🪙"),
-    (2, "🪙🪙"),
-    (3, "🪙🪙🪙"),
-    (4, "🪙🪙🪙🪙"),
-    (5, "🪙🪙🪙🪙🪙"),
+    (1, "🪙 · NT$0–100"),
+    (2, "🪙🪙 · NT$100–200"),
+    (3, "🪙🪙🪙 · NT$200–300"),
+    (4, "🪙🪙🪙🪙 · NT$300–500"),
+    (5, "🪙🪙🪙🪙🪙 · NT$500以上"),
 ])
 def test_each_price_level_has_the_requested_coin_count_and_range(level, expected):
     restaurant = replace(load_default_catalog().restaurants[0], price_level=level)
@@ -43,14 +43,14 @@ def test_unknown_coin_levels_do_not_fabricate_a_budget(level):
 
 
 def test_coin_legend_explains_all_requested_ranges():
-    assert PRICE_LEVEL_LABELS == {
-        1: "1 枚金幣", 2: "2 枚金幣", 3: "3 枚金幣",
-        4: "4 枚金幣", 5: "5 枚金幣",
+    assert PRICE_RANGES == {
+        1: "NT$0–100", 2: "NT$100–200", 3: "NT$200–300",
+        4: "NT$300–500", 5: "NT$500以上",
     }
     html = price_legend_html()
     assert 'aria-label="金幣價格範圍說明"' in html
     assert html.count('role="listitem"') == 5
-    for level, price_range in PRICE_LEVEL_LABELS.items():
+    for level, price_range in PRICE_RANGES.items():
         assert f'aria-label="{level} 枚金幣"' in html
         assert price_range in html
 

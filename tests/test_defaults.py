@@ -14,7 +14,7 @@ def test_bundled_catalog_preserves_all_original_rows_and_fields():
     workbook.close()
     parsed = defaults.load_default_catalog().restaurants
     assert rows[0][:4] == ("Restaurant", "Location", "Gener", "Price")
-    assert len(rows[1:]) == len(parsed) == 14
+    assert len(rows[1:]) == len(parsed) == 10
     for source, restaurant in zip(rows[1:], parsed, strict=True):
         assert restaurant.name == source[0]
         assert restaurant.location == source[1]
@@ -38,8 +38,8 @@ def test_current_source_rows_are_all_available_for_recommendations():
     closed = [restaurant for restaurant in result.restaurants if restaurant.is_closed]
     assert closed == []
     session = PickerSession()
-    assert len(session.candidates(Filters())) == 14
-    assert len(session.candidates(Filters(include_closed=True))) == 14
+    assert len(session.candidates(Filters())) == 10
+    assert len(session.candidates(Filters(include_closed=True))) == 10
 
 
 def test_each_default_load_returns_independent_mutable_collections():
@@ -50,7 +50,7 @@ def test_each_default_load_returns_independent_mutable_collections():
     assert first.warnings is not second.warnings
     first.restaurants.clear()
     first.warnings.append("只屬於第一個讀取結果")
-    assert len(second.restaurants) == 14
+    assert len(second.restaurants) == 10
     assert "只屬於第一個讀取結果" not in second.warnings
 
 
@@ -76,5 +76,5 @@ def test_session_import_and_reset_do_not_change_bundled_workbook():
     session = PickerSession()
     session.restaurants.clear()
     session.reset()
-    assert len(session.restaurants) == 14
+    assert len(session.restaurants) == 10
     assert defaults.DEFAULT_DATA_PATH.read_bytes() == before
