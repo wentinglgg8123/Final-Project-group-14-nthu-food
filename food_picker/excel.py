@@ -139,15 +139,15 @@ def _write_workbook(headers: Sequence[str], rows: Sequence[Sequence[object]]) ->
         )
     sheet.freeze_panes = "A2"
     sheet.auto_filter.ref = sheet.dimensions
-    sheet["B1"].comment = Comment("保留原始地點，例如小吃部、清夜，或 Gongguan 等舊版代碼；不會自動判定清大周邊距離。", "清食指南")
-    sheet["D1"].comment = Comment("價格級距：請填 1 至 5，可用 1.5 等半級；這不是新臺幣金額，不知道時可留白。", "清食指南")
+    sheet["B1"].comment = Comment("保留原始地點，例如小吃部、清夜，或 Gongguan 等舊版代碼；不會自動判定清大周邊距離。", "清大食刻表")
+    sheet["D1"].comment = Comment("價格級距：請填 1 至 5，可用 1.5 等半級；這不是新臺幣金額，不知道時可留白。", "清大食刻表")
     for column in "EFGHI":
-        sheet[f"{column}1"].comment = Comment("適合此情境時填 O，不適合或未知時留白。", "清食指南")
-    sheet["J1"].comment = Comment("緯度, 經度，例如 25.0182, 121.5310；不知道時可留白。", "清食指南")
-    sheet["K1"].comment = Comment("店家備註會原樣保留；包含「關門了」等歇業提醒的店家不會被推薦。", "清食指南")
+        sheet[f"{column}1"].comment = Comment("適合此情境時填 O，不適合或未知時留白。", "清大食刻表")
+    sheet["J1"].comment = Comment("緯度, 經度，例如 25.0182, 121.5310；不知道時可留白。", "清大食刻表")
+    sheet["K1"].comment = Comment("店家備註會原樣保留；包含「關門了」等歇業提醒的店家不會被推薦。", "清大食刻表")
     for index, header in enumerate(headers, 1):
         if header in SCHEDULE_HEADERS:
-            sheet.cell(1, index).comment = Comment("保留提供的營業時間文字，不會依此自動判斷目前是否營業。", "清食指南")
+            sheet.cell(1, index).comment = Comment("保留提供的營業時間文字，不會依此自動判斷目前是否營業。", "清大食刻表")
     output = BytesIO()
     try:
         workbook.save(output)

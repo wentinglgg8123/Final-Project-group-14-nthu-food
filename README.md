@@ -1,4 +1,4 @@
-# 清食指南
+# 清大食刻表
 
 用 Excel 餐廳名單隨機決定下一餐的繁體中文網站。以 **Python、Streamlit、openpyxl 與 pypinyin** 實作，採淺色簡約介面；頁面最上方先提供店名搜尋，下方接續篩選與推薦。
 
@@ -203,7 +203,7 @@ GitHub Actions 使用 Python 3.12 執行套件安裝、一般測試、語法編�
 
 ## 本儲存庫與部署入口
 
-本專案的功能、介面與內建 10 間餐廳名單完整取自 [wentinglgg8123/a-easy-food-selector](https://github.com/wentinglgg8123/a-easy-food-selector)，來源版本 `c0beaf9ab6b76ccbb693d8e26a80b2c98943a048`；網站名稱依要求保留「清食指南」。原本多人加權推薦、收藏、雙模式導覽、舊 JSON 與介面程式已移除。
+本專案的功能、介面與內建 10 間餐廳名單完整取自 [wentinglgg8123/a-easy-food-selector](https://github.com/wentinglgg8123/a-easy-food-selector)，來源版本 `c0beaf9ab6b76ccbb693d8e26a80b2c98943a048`；網站名稱已改為「清大食刻表」。原本多人加權推薦、收藏、雙模式導覽、舊 JSON 與介面程式已移除。
 
 主要程式為 `app.py`。既有 Streamlit Cloud 的 Main file path 若仍是 `streamlit_app.py`，可直接沿用，該檔僅呼叫同一個網站，不會顯示另一套介面。
 

@@ -156,7 +156,7 @@ def import_dialog() -> None:
     st.code("Restaurant, Location, Genre（或 Gener）, Price, OnePerson, Dating,\nGathering, FastServe, SlowEat, Coordinates, Comments,\nAvailable time, special available time", language=None)
     st.caption("Price 填 1–5，可用 0.5 級距；1.5 顯示一枚半金幣。料理可用逗號分隔多種類別；用餐情境／節奏填 O 表示有標記。營業時間直接填文字，Coordinates 可留白。舊版中文欄位格式也可使用。")
     st.download_button(
-        "下載 Excel 範本", template_bytes(), file_name="清食指南_餐廳名單範本.xlsx",
+        "下載 Excel 範本", template_bytes(), file_name="清大食刻表_餐廳名單範本.xlsx",
         mime=MIME_XLSX, on_click="ignore", key="dialog_template", icon=":material/download:",
         width="stretch",
     )
@@ -166,7 +166,7 @@ def import_dialog() -> None:
 def render_header() -> None:
     brand, upload = st.columns([3, 1], vertical_alignment="center")
     with brand:
-        st.html('<header class="brand" id="top"><h1><a href="#discover" class="wordmark">清食指南</a></h1><span>找一家，吃頓好的。</span></header>')
+        st.html('<header class="brand" id="top"><h1><a href="#discover" class="wordmark">清大食刻表</a></h1><span>找一家，吃頓好的。</span></header>')
     with upload:
         if st.button("匯入 Excel 名單", icon=":material/upload:", width="stretch"):
             import_dialog()
@@ -383,7 +383,7 @@ def render_catalog(state: PickerSession, filters: Filters, access: PageReviews) 
                     "Google 地圖", display_text="開啟餐廳地圖", help="以店名與地址／地點搜尋 Google 地圖。",
                 )},
             )
-            st.download_button("匯出篩選名單", export_restaurants(candidates), file_name="清食指南_篩選餐廳.xlsx", mime=MIME_XLSX, on_click="ignore", icon=":material/download:")
+            st.download_button("匯出篩選名單", export_restaurants(candidates), file_name="清大食刻表_篩選餐廳.xlsx", mime=MIME_XLSX, on_click="ignore", icon=":material/download:")
         else:
             st.write("目前沒有符合條件的餐廳。")
     if state.history:
@@ -399,7 +399,7 @@ def render_footer(state: PickerSession) -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="清食指南｜簡單找到下一餐", page_icon="🍽️", layout="wide")
+    st.set_page_config(page_title="清大食刻表｜簡單找到下一餐", page_icon="🍽️", layout="wide")
     st.html(ROOT / "static" / "styles.css")
     try:
         state = picker()
