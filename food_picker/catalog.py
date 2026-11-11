@@ -416,6 +416,7 @@ def filter_restaurants(restaurants: Sequence[Restaurant], filters: Filters) -> l
     query = _normalise(filters.query)
     locations = {_normalise(location) for location in filters.locations}
     categories = {_normalise(category) for category in filters.categories}
+    excluded_categories = {_normalise(category) for category in filters.excluded_categories}
     price_levels = set(filters.price_levels)
     result = []
     for restaurant in restaurants:
@@ -434,6 +435,8 @@ def filter_restaurants(restaurants: Sequence[Restaurant], filters: Filters) -> l
         if filters.category != "all" and _normalise(filters.category) not in category_values:
             continue
         if categories and categories.isdisjoint(category_values):
+            continue
+        if excluded_categories and not excluded_categories.isdisjoint(category_values):
             continue
         if filters.location != "all" and _normalise(filters.location) != _normalise(restaurant.location):
             continue

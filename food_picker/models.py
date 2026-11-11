@@ -56,6 +56,7 @@ class Filters:
     locations: tuple[str, ...] = ()
     categories: tuple[str, ...] = ()
     price_levels: tuple[float, ...] = ()
+    excluded_categories: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

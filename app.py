@@ -22,7 +22,7 @@ from food_picker.session import PickerSession
 ROOT = Path(__file__).parent
 MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 FILTER_DEFAULTS = {
-    "location_choices": [], "category_choices": [], "price_choices": [],
+    "location_choices": [], "category_choices": [], "excluded_category_choices": [], "price_choices": [],
     "occasion_choice": [], "pace_choice": [], "query_choice": "", "include_closed": False,
     "max_price_choice": None,
 }
@@ -106,6 +106,7 @@ def read_filters() -> Filters:
     return Filters(
         locations=tuple(st.session_state.get("location_choices", [])),
         categories=tuple(st.session_state.get("category_choices", [])),
+        excluded_categories=tuple(st.session_state.get("excluded_category_choices", [])),
         price_levels=tuple(st.session_state.get("price_choices", [])),
         max_price=st.session_state.get("max_price_choice"),
         query=st.session_state.get("query_choice", ""),
@@ -281,7 +282,8 @@ def render_filters(state: PickerSession) -> Filters:
     with places:
         render_filter_group("地點", locations, "location_choices", location_label)
     with cuisines:
-        render_filter_group("食物種類", sorted({category for r in state.restaurants for category in restaurant_categories(r)}), "category_choices")
+        cuisine_options = sorted({category for r in state.restaurants for category in restaurant_categories(r)})
+        render_filter_group("食物種類", cuisine_options, "category_choices")
     prices, occasions, paces = st.columns([1.2, 1, 1], gap="large")
     with prices:
         render_filter_group("價格等級", list(range(1, 6)), "price_choices", coin_label)
@@ -294,6 +296,8 @@ def render_filters(state: PickerSession) -> Filters:
         st.caption("需同時符合所選節奏")
     st.html(price_legend_html())
     with st.expander("更多選項"):
+        render_filter_group("排除料理種類", cuisine_options, "excluded_category_choices")
+        st.caption("選取後，含有這些料理標籤的餐廳都會被排除。")
         st.checkbox("包含已註記歇業店家", key="include_closed", help="僅供瀏覽與查詢；歇業店家不參與隨機推薦。")
         if any(r.price is not None for r in state.restaurants):
             st.number_input("最高均消（元）", min_value=0.0, value=None, key="max_price_choice", help="僅適用舊版中文名單中提供均消的資料。")
