@@ -36,7 +36,7 @@ def test_initial_page_loads_real_catalog_for_every_visitor(app):
     assert len(app.pills(key="location_choices").options) == 2
     assert len(app.pills(key="category_choices").options) == 18
     assert len(app.selectbox) == 0 and len(app.multiselect) == 0
-    assert len(app.pills) == 5
+    assert len(app.pills) == 6
     assert not any("FOODFLIX" in element.value for element in app.get("html"))
     assert app.text_input[0].key == "query_choice"
     assert app.text_input[0].label == "搜尋店家"

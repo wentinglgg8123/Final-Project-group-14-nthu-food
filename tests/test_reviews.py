@@ -240,7 +240,7 @@ def test_remote_errors_do_not_expose_headers_or_response_details(error):
     assert failure.value.__suppress_context__
 
 
-@pytest.mark.parametrize("payload", [b"not JSON", b'{"error":"private"}', b"x" * 512_001])
+@pytest.mark.parametrize("payload", [b"not JSON", b'{"error":"private"}', b"x" * 512_001], ids=["invalid-json", "error-response", "oversized-response"])
 def test_malformed_or_oversized_remote_response_is_reported_safely(payload):
     client = SupabaseReviewStore(URL, KEY, transport=lambda request, timeout: BytesIO(payload))
     with pytest.raises(ReviewError):
