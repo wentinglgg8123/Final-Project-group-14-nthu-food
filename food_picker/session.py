@@ -1,8 +1,10 @@
 """Keep each visitor's current catalog and recommendations in their own session."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from random import Random
 
+from .distance import UserLocation, valid_coordinates
+from .models import ValidationError
 from .catalog import choose_restaurant, filter_restaurants
 from .defaults import load_default_catalog
 from .models import Filters, ParseResult, Restaurant
@@ -17,6 +19,7 @@ class PickerSession:
     warnings: list[str] = field(default_factory=list)
     selected: Restaurant | None = None
     history: list[Restaurant] = field(default_factory=list)
+    user_location: UserLocation | None = None
 
     def __post_init__(self) -> None:
         if self.restaurants is None:
@@ -66,3 +69,15 @@ class PickerSession:
         if self.selected:
             self.history = [self.selected, *[r for r in self.history if r.id != self.selected.id]][:3]
         return self.selected
+
+    def set_coordinates(self, restaurant_id: str, latitude: float, longitude: float) -> None:
+        if not valid_coordinates(latitude, longitude):
+            raise ValidationError('餐廳座標無效。')
+        current = next((r for r in self.restaurants if r.id == restaurant_id), None)
+        if current is None:
+            raise ValidationError('找不到這間餐廳，請重新選擇。')
+        updated = replace(current, latitude=latitude, longitude=longitude)
+        self.restaurants = [updated if r.id == restaurant_id else r for r in self.restaurants]
+        if self.selected and self.selected.id == restaurant_id:
+            self.selected = updated
+        self.history = [updated if r.id == restaurant_id else r for r in self.history]

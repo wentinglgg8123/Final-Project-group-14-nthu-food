@@ -169,6 +169,8 @@ def export_restaurants(restaurants: Sequence[Restaurant]) -> bytes:
     schedules = any(restaurant.opening_hours or restaurant.special_opening_hours for restaurant in restaurants)
     if schedules:
         headers += SCHEDULE_HEADERS
+    if restaurants:
+        headers += ("RestaurantID",)
     rows = []
     for restaurant in restaurants:
         coordinates = (
@@ -193,6 +195,7 @@ def export_restaurants(restaurants: Sequence[Restaurant]) -> bytes:
             values += (area, restaurant.price, restaurant.distance, restaurant.address)
         if schedules:
             values += (restaurant.opening_hours, restaurant.special_opening_hours)
+        values += (restaurant.id,)
         rows.append(values)
     return _write_workbook(headers, rows)
 

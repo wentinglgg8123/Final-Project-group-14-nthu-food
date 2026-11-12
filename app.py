@@ -6,6 +6,8 @@ from unicodedata import normalize
 
 import streamlit as st
 
+from food_picker.distance import distance_text, nearest_first
+from food_picker.location_ui import render_location
 from food_picker.catalog import location_label, restaurant_categories
 from food_picker.defaults import DEFAULT_DATA_PATH
 from food_picker.excel import build_template, export_restaurants, parse_excel
@@ -183,6 +185,8 @@ def render_restaurant_cards(restaurants: list[Restaurant], access: PageReviews, 
                 key = f"restaurant_{restaurant.id}" if context == "catalog" else f"{context}_restaurant_{restaurant.id}"
                 with st.container(border=True, key=key):
                     st.html(restaurant_card(restaurant))
+                    if picker().user_location is not None:
+                        st.caption(distance_text(restaurant, picker().user_location))
                     render_reviews(restaurant, access.store, reviews.get(restaurant.id, []),
                                    load_error=access.failed, context=context)
 
@@ -206,6 +210,8 @@ def render_search(state: PickerSession, access: PageReviews) -> None:
     if not matches:
         matches = suggest_restaurants(state.restaurants, query)
         similar = bool(matches)
+    if st.session_state.get("distance_order") == "距離由近到遠":
+        matches = nearest_first(matches, state.user_location)
     signature = (normalized, tuple(r.id for r in matches))
     if st.session_state.get("search_signature") != signature:
         st.session_state["search_signature"] = signature
@@ -331,6 +337,8 @@ def render_recommendation(state: PickerSession, filters: Filters, access: PageRe
             f'<p class="result-note">{escape(current.note or "名單沒有額外備註，出發前記得確認營業資訊。")}</p>'
             '</div></section>'
         )
+        if state.user_location is not None:
+            st.caption(distance_text(current, state.user_location))
         st.link_button("在 Google 地圖查看", map_url(current), icon=":material/map:")
     st.button(
         "再推薦一家" if current else "幫我決定這一餐", on_click=pick_meal,
@@ -358,6 +366,8 @@ def render_rail(title: str, subtitle: str, restaurants: list[Restaurant], key: s
 
 def render_catalog(state: PickerSession, filters: Filters, access: PageReviews) -> None:
     candidates = state.candidates(filters)
+    if st.session_state.get("distance_order") == "距離由近到遠":
+        candidates = nearest_first(candidates, state.user_location)
     signature = tuple(restaurant.id for restaurant in candidates)
     if st.session_state.get("catalog_signature") != signature:
         st.session_state["catalog_page"] = 0
@@ -382,10 +392,11 @@ def render_catalog(state: PickerSession, filters: Filters, access: PageReviews) 
     with st.expander(f"查看全部符合條件的餐廳（{len(candidates)} 間）"):
         if candidates:
             st.dataframe(
-                table_rows(candidates), hide_index=True, width="stretch",
+                table_rows(candidates, state.user_location),
+                hide_index=True, width="stretch",
                 column_config={"Google 地圖": st.column_config.LinkColumn(
                     "Google 地圖", display_text="開啟餐廳地圖", help="以店名與地址／地點搜尋 Google 地圖。",
-                )},
+                ), **({"直線距離（公尺）": st.column_config.NumberColumn(format="%.0f", help="依裝置與店家座標計算，非步行路線；可點欄位排序。") } if state.user_location else {})},
             )
             st.download_button("匯出篩選名單", export_restaurants(candidates), file_name="清大食刻表_篩選餐廳.xlsx", mime=MIME_XLSX, on_click="ignore", icon=":material/download:")
         else:
@@ -413,6 +424,7 @@ def main() -> None:
     access = PageReviews()
     render_search(state, access)
     render_header()
+    render_location(state)
     with st.container(border=True, key="filters_panel"):
         filters = render_filters(state)
     with st.container(border=True, key="pick_panel"):

@@ -50,6 +50,7 @@ GENRE_LABELS = {
 }
 FLAG_COLUMNS = ("one_person", "dating", "gathering", "fast_serve", "slow_eat")
 COLUMN_NAMES = {
+    "id": "RestaurantID（店家識別碼）",
     "name": "餐廳名稱",
     "area": "區域",
     "category": "類型",
@@ -79,6 +80,7 @@ COLUMN_ALIASES = {
     "note": ("備註", "說明", "note", "notes"),
 }
 TEXT_LIMITS = {
+    "id": 100,
     "name": 200, "area": 80, "category": 80, "address": 500, "note": 2_000,
     "location": 80, "genre": 80,
     "opening_hours": 500, "special_opening_hours": 500,
@@ -126,6 +128,7 @@ _HEADER_COLUMNS = {
     for alias in aliases
 }
 _RICH_COLUMN_ALIASES = {
+    "id": ("RestaurantID",),
     "name": ("Restaurant",),
     "location": ("Location",),
     "genre": ("Genre", "Gener"),
@@ -333,6 +336,7 @@ def parse_rows(rows: Sequence[Sequence[object]]) -> ParseResult:
 
     restaurants: list[Restaurant] = []
     seen: set[str] = set()
+    seen_ids: set[str] = set()
     warning_rows: dict[str, list[int]] = {}
 
     def warn(message: str, row_number: int) -> None:
@@ -384,8 +388,17 @@ def parse_rows(rows: Sequence[Sequence[object]]) -> ParseResult:
             if key in seen:
                 warn("相同名稱、地點與座標的餐廳重複，已保留第一筆" if rich_schema else "相同名稱、地址與區域的餐廳重複，已保留第一筆", row_number)
                 continue
-            seen.add(key)
             restaurant_id = f"restaurant-{sha256(key.encode()).hexdigest()[:20]}"
+            supplied_id = _text(cell("id"), "id") if rich_schema else ""
+            if supplied_id:
+                if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,99}", supplied_id):
+                    raise ValidationError("RestaurantID 格式無效，已略過")
+                restaurant_id = supplied_id
+            if restaurant_id in seen_ids:
+                warn("RestaurantID 重複，已保留第一筆", row_number)
+                continue
+            seen.add(key)
+            seen_ids.add(restaurant_id)
             restaurants.append(Restaurant(
                 restaurant_id, name, area, category, price, distance, address, note,
                 location=location, genre=genre, price_level=price_level,

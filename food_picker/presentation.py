@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 
 from .catalog import location_label
 from .models import Restaurant
+from .distance import UserLocation, straight_line_meters
 
 PRICE_RANGES = {
     1: "NT$0–100",
@@ -159,8 +160,8 @@ def restaurant_card(restaurant: Restaurant, index: int = 0) -> str:
     )
 
 
-def table_rows(restaurants: list[Restaurant]) -> list[dict[str, object]]:
-    return [
+def table_rows(restaurants: list[Restaurant], origin: UserLocation | None = None) -> list[dict[str, object]]:
+    rows = [
         {"餐廳名稱": r.name, "地點": area_label(r), "食物種類": r.category,
          "價格": price_label(r), "一個人吃": r.one_person, "約會": r.dating,
          "聚餐": r.gathering, "快速上菜": r.fast_serve, "慢慢享用": r.slow_eat,
@@ -171,3 +172,8 @@ def table_rows(restaurants: list[Restaurant]) -> list[dict[str, object]]:
             if r.area != "other" or r.price is not None or r.distance is not None or r.address else {})}
         for r in restaurants
     ]
+
+    if origin is not None:
+        for row, restaurant in zip(rows, restaurants):
+            row["直線距離（公尺）"] = straight_line_meters(origin, restaurant)
+    return rows

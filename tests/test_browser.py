@@ -19,7 +19,7 @@ from food_picker.excel import EXCEL_HEADERS
 
 pytestmark = pytest.mark.browser
 ROOT = Path(__file__).resolve().parents[1]
-APP_URL = "http://127.0.0.1:8501"
+APP_URL = os.environ.get("FOOD_PICKER_TEST_URL", "http://127.0.0.1:8501")
 MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 RESULT = 'section[aria-label="餐廳推薦結果"]'
 
@@ -316,7 +316,8 @@ def test_full_source_template_and_filtered_downloads_are_real_workbooks(page, tm
     _expect_count(page, 9)
     page.get_by_text("查看全部符合條件的餐廳（9 間）", exact=True).click()
     rows = _download_rows(page, "匯出篩選名單", tmp_path / "filtered.xlsx")
-    assert rows[0] == EXCEL_HEADERS + ("Available time", "special available time")
+    assert rows[0] == EXCEL_HEADERS + ("Available time", "special available time", "RestaurantID")
+    assert all(row[-1].startswith("restaurant-") for row in rows[1:])
     assert len(rows) == 10
     assert all(row[1] == "小吃部" for row in rows[1:])
     assert {row[0] for row in rows[1:]} == {"包子商行", "麥當勞", "比司多早午餐", "7-ELEVEN", "漢城異國美食", "蘇記牛肉麵", "一番快餐", "好富熟成黑咖哩.台式蓋飯", "珈名鮮茶"}
