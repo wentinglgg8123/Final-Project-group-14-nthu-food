@@ -33,6 +33,8 @@ def handle_location_event(state, event):
     if kind == 'clear':
         state.user_location = None
         st.session_state['distance_order'] = '原始順序'
+        st.session_state['radius_choice'] = '不限距離'
+        st.session_state.pop('custom_radius', None)
         st.session_state.pop('location_error', None)
     elif kind == 'position':
         origin = UserLocation(event.get('latitude'), event.get('longitude'), event.get('accuracy'))

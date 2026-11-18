@@ -1,9 +1,10 @@
 """Keep each visitor's current catalog and recommendations in their own session."""
 
+from collections.abc import Collection
 from dataclasses import dataclass, field, replace
 from random import Random
 
-from .distance import UserLocation, valid_coordinates
+from .distance import UserLocation, straight_line_meters, valid_coordinates
 from .models import ValidationError
 from .catalog import choose_restaurant, filter_restaurants
 from .defaults import load_default_catalog
@@ -55,16 +56,29 @@ class PickerSession:
 
     def candidates(self, filters: Filters) -> list[Restaurant]:
         assert self.restaurants is not None
-        return filter_restaurants(self.restaurants, filters)
+        matches = filter_restaurants(self.restaurants, filters)
+        origin, radius = self.user_location, filters.radius_meters
+        if origin is None or radius is None:
+            return matches
+        return [
+            restaurant for restaurant in matches
+            if (meters := straight_line_meters(origin, restaurant)) is not None and meters <= radius
+        ]
 
     def current(self, filters: Filters) -> Restaurant | None:
         if self.selected and not self.selected.is_closed and any(r.id == self.selected.id for r in self.candidates(filters)):
             return self.selected
         return None
 
-    def choose(self, filters: Filters, rng: Random | None = None) -> Restaurant | None:
+    def choose(
+        self, filters: Filters, rng: Random | None = None, *,
+        pool_ids: Collection[str] | None = None,
+    ) -> Restaurant | None:
         previous_id = self.selected.id if self.selected else None
-        eligible = [restaurant for restaurant in self.candidates(filters) if not restaurant.is_closed]
+        eligible = [
+            restaurant for restaurant in self.candidates(filters)
+            if not restaurant.is_closed and (pool_ids is None or restaurant.id in pool_ids)
+        ]
         self.selected = choose_restaurant(eligible, previous_id, rng)
         if self.selected:
             self.history = [self.selected, *[r for r in self.history if r.id != self.selected.id]][:3]

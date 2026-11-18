@@ -147,7 +147,13 @@ def _import_catalog(page):
     _expect_count(page, 3)
 
 
+def _filter_menu(page, label):
+    return page.get_by_role("button", name=re.compile(rf"^{re.escape(label)}(?: · \d+ 項)?$"))
+
+
 def _select_pills(page, label, values):
+    menu = _filter_menu(page, label)
+    menu.click()
     for value in values:
         _wait_idle(page)
         button = page.get_by_role("toolbar", name=label, exact=True).get_by_role(
@@ -157,9 +163,12 @@ def _select_pills(page, label, values):
         button.click()
         expect(button).to_have_attribute("aria-pressed", "true")
         _wait_idle(page)
+    menu.click()
 
 
 def _toggle_pill_off(page, label, value):
+    menu = _filter_menu(page, label)
+    menu.click()
     _wait_idle(page)
     button = page.get_by_role("toolbar", name=label, exact=True).get_by_role(
         "button", name=value, exact=True
@@ -168,6 +177,7 @@ def _toggle_pill_off(page, label, value):
     button.click()
     expect(button).to_have_attribute("aria-pressed", "false")
     _wait_idle(page)
+    menu.click()
 
 
 def _wait_idle(page):
@@ -202,27 +212,48 @@ def _download_rows(page, button_name, destination):
 def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page):
     expect(page.get_by_text("FOODFLIX", exact=True)).to_have_count(0)
     expect(page.get_by_role("combobox")).to_have_count(0)
-    expect(page.get_by_role("toolbar")).to_have_count(5)
-    expect(page.get_by_role("toolbar", name="食物種類", exact=True).get_by_role("button")).to_have_count(33)
+    toolbar = page.get_by_role("toolbar", name="食物種類", exact=True)
+    expect(toolbar).not_to_be_visible()
+    menu = _filter_menu(page, "食物種類")
+    menu.click()
+    expect(toolbar.get_by_role("button")).to_have_count(33)
+    menu.click()
+    expect(toolbar).not_to_be_visible()
     search_bounds = page.get_by_role("textbox", name="搜尋店家", exact=True).bounding_box()
     filter_bounds = page.locator(".st-key-filters_panel").bounding_box()
     assert search_bounds is not None and filter_bounds is not None
     assert 0 <= search_bounds["y"] < filter_bounds["y"] < page.viewport_size["height"]
     for label in ("地點", "食物種類"):
-        expect(page.get_by_role("toolbar", name=label, exact=True).get_by_role("button").first).to_be_visible()
+        expect(_filter_menu(page, label)).to_be_visible()
     _expect_count(page, 119)
     expect(page.get_by_role("button", name="下載完整名單", exact=True)).to_be_visible()
     page.get_by_role("button", name="幫我決定這一餐", exact=True).click()
     result = page.locator(f"{RESULT} h2")
     expect(result).not_to_have_text(re.compile(r"^示範・"))
-    catalog_names = {restaurant.name for restaurant in load_default_catalog().restaurants}
+    pool = page.locator(".wheel-entries li").all_text_contents()
+    assert len(set(pool)) == len(pool) == 20
+    assert set(pool) <= {restaurant.name for restaurant in load_default_catalog().restaurants}
+    expect(page.locator(".wheel-spinning")).to_have_css("animation-name", "restaurant-spin")
+    expect(result).to_be_visible()
     previous = result.inner_text()
-    assert previous in catalog_names
+    angle = float(page.locator(".wheel-rotor").evaluate(
+        "element => parseFloat(element.style.getPropertyValue('--wheel-angle'))"
+    ))
+    assert angle == pytest.approx(1440 - pool.index(previous) * 18)
+    assert previous in pool
     for _ in range(3):
         page.get_by_role("button", name="再推薦一家", exact=True).click()
         expect(result).not_to_have_text(previous)
+        expect(result).to_be_visible()
         previous = result.inner_text()
-        assert previous in catalog_names
+        assert previous in pool
+    page.get_by_text("輪盤模式", exact=True).click()
+    expect(page.locator(".restaurant-wheel")).to_have_count(0)
+    _wait_idle(page)
+    page.get_by_role("button", name="再推薦一家", exact=True).click()
+    _wait_idle(page)
+    expect(result).not_to_have_text(previous)
+    expect(page.locator(".wheel-spinning")).to_have_count(0)
     page.locator("summary").filter(has_text="最近推薦").click()
     expect(page.get_by_role("heading", name="最近推薦", exact=True)).to_be_visible()
 
@@ -245,10 +276,10 @@ def test_actual_location_genre_price_and_occasion_filters_then_reset(page):
     page.get_by_role("button", name="全部取消", exact=True).click()
     _expect_count(page, 119)
     expect(query).to_have_value("")
-    expect(page.get_by_role("toolbar", name="食物種類", exact=True).get_by_role("button", pressed=True)).to_have_count(0)
-    expect(page.get_by_role("toolbar", name="價格等級", exact=True).get_by_role("button", pressed=True)).to_have_count(0)
+    expect(page.get_by_role("button", name="食物種類", exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name="價格等級", exact=True)).to_be_visible()
     for label in ("地點", "用餐情境", "用餐節奏"):
-        expect(page.get_by_role("toolbar", name=label, exact=True).get_by_role("button", pressed=True)).to_have_count(0)
+        expect(page.get_by_role("button", name=label, exact=True)).to_be_visible()
 
 
 def test_rich_import_requires_all_features_uses_named_maps_and_restores_defaults(page):
@@ -272,7 +303,7 @@ def test_rich_import_requires_all_features_uses_named_maps_and_restores_defaults
     _expect_count(page, 119)
     expect(page.get_by_role("button", name="恢復內建名單", exact=True)).not_to_be_visible()
     expect(page.locator(RESULT)).not_to_be_visible()
-    expect(page.get_by_role("toolbar", name="食物種類", exact=True).get_by_role("button", pressed=True)).to_have_count(0)
+    expect(page.get_by_role("button", name="食物種類", exact=True)).to_be_visible()
 
 
 def test_invalid_import_preserves_the_current_custom_catalog(page):
@@ -387,7 +418,7 @@ def test_multiple_pills_union_within_groups_and_toggle_off_without_dropdowns(pag
     page.get_by_role("button", name="全部取消", exact=True).click()
     _expect_count(page, 6)
     for label in ("地點", "食物種類", "價格等級", "用餐情境", "用餐節奏"):
-        expect(page.get_by_role("toolbar", name=label, exact=True).get_by_role("button", pressed=True)).to_have_count(0)
+        expect(page.get_by_role("button", name=label, exact=True)).to_be_visible()
 
 
 def test_each_filter_group_has_select_all_and_cancel_buttons(page):
@@ -398,21 +429,28 @@ def test_each_filter_group_has_select_all_and_cancel_buttons(page):
         "occasion_choice": ("用餐情境", 3),
         "pace_choice": ("用餐節奏", 2),
     }
-    for key, (label, option_count) in groups.items():
-        group = page.locator(f".st-key-group_{key}")
+    for label, option_count in groups.values():
+        menu = _filter_menu(page, label)
+        menu.click()
+        group = page.get_by_test_id("stPopoverBody")
         group.get_by_role("button", name="全選", exact=True).click()
         selected = page.get_by_role("toolbar", name=label, exact=True).get_by_role("button", pressed=True)
         expect(selected).to_have_count(option_count)
         _wait_idle(page)
         group.get_by_role("button", name="取消", exact=True).click()
         expect(selected).to_have_count(0)
+        menu.click()
         _expect_count(page, 119)
+    page.get_by_text("更多選項", exact=True).click()
     legend = page.get_by_role("list", name="金幣價格範圍說明", exact=True)
     for price_range in ("NT$0–100", "NT$100–200", "NT$200–300", "NT$300–500", "NT$500以上"):
         expect(legend).to_contain_text(price_range)
+    menu = _filter_menu(page, "價格等級")
+    menu.click()
     price_buttons = page.get_by_role("toolbar", name="價格等級", exact=True)
     expect(price_buttons.get_by_role("button")).to_have_count(5)
     expect(price_buttons).not_to_contain_text("1.5")
+    menu.click()
     _select_pills(page, "價格等級", ["🪙"])
     _expect_count(page, 77)
     expect(page.locator(".st-key-catalog_grid").get_by_role("heading", name="7-ELEVEN", exact=True)).to_be_visible()
@@ -518,6 +556,7 @@ def test_top_search_pages_expose_comment_forms_for_every_matching_store(page):
     ]])
     dialog = _upload(page, content, "搜尋分頁名單.xlsx")
     expect(dialog).not_to_be_visible()
+    _wait_idle(page)
     _query(page, "搜尋測試")
     results = page.locator(".st-key-search_results")
     expect(results.get_by_test_id("stForm")).to_have_count(3)
@@ -525,7 +564,9 @@ def test_top_search_pages_expose_comment_forms_for_every_matching_store(page):
     previous = results.get_by_role("button", name="上一頁搜尋結果", exact=True)
     next_page = results.get_by_role("button", name="下一頁搜尋結果", exact=True)
     expect(previous).to_be_disabled()
+    _wait_idle(page)
     next_page.click()
+    expect(results.get_by_role("heading", name="搜尋測試3店", exact=True)).to_be_visible()
     expect(results.get_by_role("heading", name="搜尋測試0店", exact=True)).to_have_count(0)
     expect(results.get_by_test_id("stForm")).to_have_count(3)
     expect(previous).to_be_enabled()
@@ -559,7 +600,10 @@ def test_search_clear_icon_is_inside_the_field_and_clears_unsent_text_preserving
     expect(page.locator(".st-key-search_results")).to_have_count(0)
     _expect_count(page, 1)
     for label, name in (("地點", "小吃部"), ("食物種類", "速食")):
+        menu = _filter_menu(page, label)
+        menu.click()
         expect(page.get_by_role("toolbar", name=label, exact=True).get_by_role("button", name=name, exact=True)).to_have_attribute("aria-pressed", "true")
+        menu.click()
 
     _query(page, "麥當勞")
     query.focus()

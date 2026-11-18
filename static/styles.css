@@ -113,8 +113,6 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
 .price-legend-item { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px 9px; font-size: 12px; line-height: 1.7; }
 .price-legend-coins { white-space: nowrap; }
 .st-key-pick_panel { padding: 25px 28px; }
-.pick-topline { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--muted); font-size: 12px; }
-.pick-topline > span:first-child { margin-right: auto; color: var(--accent); font-size: 12px; letter-spacing: 1px; }
 .live-dot { flex: 0 0 5px; height: 5px; border-radius: 50%; background: var(--accent); }
 .empty-result { display: flex; flex-direction: column; gap: 6px; padding: 14px 0; }
 .dice { display: grid; place-items: center; width: 70px; height: 70px; margin-bottom: 18px; border-radius: 14px; background: var(--soft); color: var(--accent); font-size: 48px; line-height: 1; }
@@ -287,4 +285,139 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; }
+}
+
+.radius-diagram {
+  position: relative;
+  width: min(100%, 16rem);
+  aspect-ratio: 1;
+  margin: 1.5rem auto .75rem;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  background: #eef5eb;
+}
+.radius-north {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  color: var(--accent);
+  font-size: .75rem;
+}
+.radius-line {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 50%;
+  border-top: 1px dashed #7a9a85;
+}
+.radius-marker, .radius-origin {
+  position: absolute;
+  width: .45rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #37755b;
+  transform: translate(-50%, -50%);
+}
+.radius-origin {
+  left: 50%;
+  top: 50%;
+  width: .7rem;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px #23513e;
+  background: #23513e;
+}
+
+.restaurant-wheel {
+  position: relative;
+  width: min(100%, 22rem);
+  aspect-ratio: 1;
+  margin: .75rem auto 0;
+}
+.wheel-rotor {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 2px solid #b3cbb9;
+  border-radius: 50%;
+  transform: rotate(var(--wheel-angle));
+}
+.wheel-spinning {
+  animation: restaurant-spin 1.65s cubic-bezier(.15, .65, .13, 1) both;
+}
+.wheel-pointer {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: -.35rem;
+  width: 0;
+  height: 0;
+  border: .52rem solid transparent;
+  border-top: 1.2rem solid #23513e;
+  transform: translateX(-50%);
+}
+.wheel-hub {
+  position: absolute;
+  inset: 45%;
+  border: 2px solid #b3cbb9;
+  border-radius: 50%;
+  background: white;
+}
+.wheel-spoke {
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--spoke-angle));
+}
+.wheel-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 39%;
+  overflow: hidden;
+  color: #243a2e;
+  font-size: .7rem;
+  font-weight: 650;
+  line-height: 1;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: translateY(-50%) rotate(-90deg) translateX(20%);
+  transform-origin: left center;
+}
+.wheel-entries {
+  max-width: 22rem;
+  margin: 0 auto;
+  color: var(--ink);
+  font-size: .875rem;
+}
+.wheel-entries summary { cursor: pointer; }
+.wheel-entries ol {
+  max-height: 12rem;
+  overflow: auto;
+  margin: .5rem 0;
+  padding-left: 1.8rem;
+}
+.st-key-wheel_reveal { animation: reveal-wheel-result .18s 1.65s both; }
+
+@keyframes restaurant-spin {
+  from { transform: rotate(0); }
+  to { transform: rotate(var(--wheel-angle)); }
+}
+@keyframes reveal-wheel-result {
+  from { visibility: hidden; opacity: 0; }
+  to { visibility: visible; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wheel-spinning, .st-key-wheel_reveal { animation: none; }
+}
+@media (min-width: 360px) and (max-width: 640px) {
+  .st-key-filter_menus [data-testid="stHorizontalBlock"] {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .st-key-filter_menus [data-testid="stColumn"] {
+    width: 100% !important;
+    min-width: 0;
+  }
+  .st-key-filter_menus [data-testid="stPopoverButton"] { padding-inline: .35rem; }
 }

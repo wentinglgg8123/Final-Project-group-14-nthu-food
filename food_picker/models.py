@@ -57,6 +57,7 @@ class Filters:
     categories: tuple[str, ...] = ()
     price_levels: tuple[float, ...] = ()
     excluded_categories: tuple[str, ...] = ()
+    radius_meters: int | None = None
 
 
 @dataclass(frozen=True)

@@ -2,6 +2,7 @@
 
 from html import escape
 from pathlib import Path
+from random import SystemRandom
 from unicodedata import normalize
 
 import streamlit as st
@@ -16,20 +17,23 @@ from food_picker.presentation import (
     area_label, coin_label, feature_labels, food_icon, hours_html, map_url, poster_tone,
     price_html, price_legend_html, restaurant_card, table_rows,
 )
+from food_picker.radius_ui import render_radius_menu, render_radius_preview, selected_radius
 from food_picker.reviews import ReviewError, configured_review_store
 from food_picker.review_ui import render_reviews
 from food_picker.search import find_restaurants, suggest_restaurants
 from food_picker.session import PickerSession
+from food_picker.wheel_ui import render_wheel
 
 ROOT = Path(__file__).parent
 MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 FILTER_DEFAULTS = {
     "location_choices": [], "category_choices": [], "excluded_category_choices": [], "price_choices": [],
     "occasion_choice": [], "pace_choice": [], "query_choice": "", "include_closed": False,
-    "max_price_choice": None,
+    "max_price_choice": None, "radius_choice": "不限距離", "custom_radius": None,
 }
 CATALOG_PAGE_SIZE = 6
 SEARCH_PAGE_SIZE = 3
+UNFILTERED_WHEEL_SIZE = 20
 
 
 class PageReviews:
@@ -111,16 +115,39 @@ def read_filters() -> Filters:
         excluded_categories=tuple(st.session_state.get("excluded_category_choices", [])),
         price_levels=tuple(st.session_state.get("price_choices", [])),
         max_price=st.session_state.get("max_price_choice"),
-        query=st.session_state.get("query_choice", ""),
+        query=st.session_state.get("query_choice", "").strip(),
         one_person="一個人吃" in occasions, dating="約會" in occasions,
         gathering="聚餐" in occasions, fast_serve="快速上菜" in paces,
         slow_eat="慢慢享用" in paces,
         include_closed=st.session_state.get("include_closed", False),
+        radius_meters=selected_radius() if picker().user_location is not None else None,
     )
 
 
+def wheel_pool(eligible: list[Restaurant], filters: Filters) -> list[Restaurant]:
+    if filters != Filters() or len(eligible) <= UNFILTERED_WHEEL_SIZE:
+        return eligible
+    signature = tuple(restaurant.id for restaurant in eligible)
+    if st.session_state.get("wheel_catalog") != signature:
+        st.session_state["wheel_catalog"] = signature
+        st.session_state["wheel_sample"] = [
+            restaurant.id for restaurant in SystemRandom().sample(eligible, UNFILTERED_WHEEL_SIZE)
+        ]
+    by_id = {restaurant.id: restaurant for restaurant in eligible}
+    return [by_id[restaurant_id] for restaurant_id in st.session_state["wheel_sample"]]
+
+
 def pick_meal() -> None:
-    picker().choose(read_filters())
+    state, filters = picker(), read_filters()
+    if not st.session_state.get("wheel_mode", True):
+        state.choose(filters)
+        return
+    eligible = [restaurant for restaurant in state.candidates(filters) if not restaurant.is_closed]
+    pool = wheel_pool(eligible, filters)
+    if state.choose(filters, pool_ids={restaurant.id for restaurant in pool}) is not None:
+        spin = st.session_state.get("wheel_round", 0) + 1
+        st.session_state["wheel_round"] = spin
+        st.session_state["wheel_pending_animation"] = spin
 
 
 def clear_import() -> None:
@@ -263,18 +290,17 @@ def render_source(state: PickerSession) -> None:
 
 
 def render_filter_group(label: str, options: list, key: str, format_func=str) -> None:
-    with st.container(key=f"group_{key}"):
+    count = len(st.session_state.get(key, []))
+    title = f"{label} · {count} 項" if count else label
+    with st.popover(title, width="stretch", key=f"group_{key}", disabled=not options):
         with st.container(horizontal=True, vertical_alignment="center", gap="small"):
             st.markdown(f"**{label}**", width="stretch")
             st.button("全選", key=f"select_all_{key}", on_click=set_filter_choices,
-                      args=(key, options), type="tertiary", disabled=not options)
+                      args=(key, options), type="tertiary")
             st.button("取消", key=f"clear_{key}", on_click=set_filter_choices,
-                      args=(key, []), type="tertiary", disabled=not options)
-        if options:
-            st.pills(label, options, selection_mode="multi", format_func=format_func,
-                     key=key, width="stretch", wrap=True, label_visibility="collapsed")
-        else:
-            st.caption("名單未提供這項分類。")
+                      args=(key, []), type="tertiary")
+        st.pills(label, options, selection_mode="multi", format_func=format_func,
+                 key=key, width="stretch", wrap=True, label_visibility="collapsed")
 
 
 def render_filters(state: PickerSession) -> Filters:
@@ -282,26 +308,27 @@ def render_filters(state: PickerSession) -> Filters:
     with st.container(horizontal=True, vertical_alignment="center"):
         st.subheader("篩選條件", anchor=False, width="stretch")
         st.button("全部取消", key="clear_all_filters", on_click=reset_filters, type="tertiary")
-    st.caption("可複選，再點一次取消；地點、料理與價格各組內符合任一項，未選則不限。")
+    st.caption("開啟選單即可複選。地點、料理與價格各組內符合任一項，未選則不限。")
     locations = sorted({r.location for r in state.restaurants if r.location}, key=location_label)
-    places, cuisines = st.columns([1, 2], gap="large")
-    with places:
-        render_filter_group("地點", locations, "location_choices", location_label)
-    with cuisines:
-        cuisine_options = sorted({category for r in state.restaurants for category in restaurant_categories(r)})
-        render_filter_group("食物種類", cuisine_options, "category_choices")
-    prices, occasions, paces = st.columns([1.2, 1, 1], gap="large")
-    with prices:
-        render_filter_group("價格等級", list(range(1, 6)), "price_choices", coin_label)
-        st.caption("半枚級距同時符合相鄰兩組，例如 1.5 可選 1 或 2 枚。")
-    with occasions:
-        render_filter_group("用餐情境", ["一個人吃", "約會", "聚餐"], "occasion_choice")
-        st.caption("需同時符合所選情境")
-    with paces:
-        render_filter_group("用餐節奏", ["快速上菜", "慢慢享用"], "pace_choice")
-        st.caption("需同時符合所選節奏")
-    st.html(price_legend_html())
+    cuisine_options = sorted({category for r in state.restaurants for category in restaurant_categories(r)})
+    with st.container(key="filter_menus"):
+        places, cuisines, distance = st.columns(3, gap="small")
+        with places:
+            render_filter_group("地點", locations, "location_choices", location_label)
+        with cuisines:
+            render_filter_group("食物種類", cuisine_options, "category_choices")
+        with distance:
+            render_radius_menu(state.user_location)
+        prices, occasions, paces = st.columns(3, gap="small")
+        with prices:
+            render_filter_group("價格等級", list(range(1, 6)), "price_choices", coin_label)
+        with occasions:
+            render_filter_group("用餐情境", ["一個人吃", "約會", "聚餐"], "occasion_choice")
+        with paces:
+            render_filter_group("用餐節奏", ["快速上菜", "慢慢享用"], "pace_choice")
     with st.expander("更多選項"):
+        st.html(price_legend_html())
+        st.caption("半枚級距符合相鄰兩組，例如 1.5 可選 1 或 2 枚。用餐情境、節奏需同時符合各自選取的項目。")
         render_filter_group("排除料理種類", cuisine_options, "excluded_category_choices")
         st.caption("選取後，含有這些料理標籤的餐廳都會被排除。")
         st.checkbox("包含已註記歇業店家", key="include_closed", help="僅供瀏覽與查詢；歇業店家不參與隨機推薦。")
@@ -311,19 +338,15 @@ def render_filters(state: PickerSession) -> Filters:
     candidates = state.candidates(filters)
     available = sum(not r.is_closed for r in candidates)
     st.caption(f"{len(candidates)} 間符合條件 · {available} 間可抽選")
+    if state.user_location is not None and filters.radius_meters is not None:
+        render_radius_preview(state.user_location, filters.radius_meters, candidates)
     return filters
 
 
-def render_recommendation(state: PickerSession, filters: Filters, access: PageReviews) -> None:
-    candidates = state.candidates(filters)
-    available = sum(not r.is_closed for r in candidates)
-    current = state.current(filters)
-    st.html('<div class="pick-topline"><span>隨機推薦</span><span>給下一餐一點靈感</span></div>')
-    if not available:
-        st.html('<div class="empty-result"><h2>沒有符合條件的餐廳</h2><p>取消幾個條件，再試一次。</p></div>')
-    elif current is None:
-        st.caption("選好條件，按一下就能推薦一家。")
-    else:
+def render_recommendation_result(
+    state: PickerSession, current: Restaurant, access: PageReviews, *, animate: bool,
+) -> None:
+    with st.container(key="wheel_reveal" if animate else "pick_result"):
         tags = ''.join(f'<span class="tag">{escape(label)}</span>' for label in feature_labels(current))
         st.html(
             f'<section class="recommendation tone-{poster_tone(current)}" aria-label="餐廳推薦結果">'
@@ -340,18 +363,35 @@ def render_recommendation(state: PickerSession, filters: Filters, access: PageRe
         if state.user_location is not None:
             st.caption(distance_text(current, state.user_location))
         st.link_button("在 Google 地圖查看", map_url(current), icon=":material/map:")
-    st.button(
-        "再推薦一家" if current else "幫我決定這一餐", on_click=pick_meal,
-        type="primary", icon=":material/shuffle:", disabled=not available,
-        width="stretch", key="pick_meal",
-    )
-    st.caption("目前只有 1 間可抽選，會推薦同一家。" if available == 1 else "每間符合條件的可用店家均等抽選，連續推薦不重複上一間。")
-    if current is not None:
         reviews = access.load([current])
         access.show_status()
         with st.container(key="recommendation_reviews"):
             render_reviews(current, access.store, reviews.get(current.id, []),
                            load_error=access.failed, context="recommendation")
+
+
+def render_recommendation(state: PickerSession, filters: Filters, access: PageReviews) -> None:
+    eligible = [restaurant for restaurant in state.candidates(filters) if not restaurant.is_closed]
+    current = state.current(filters)
+    with st.container(horizontal=True, vertical_alignment="center"):
+        st.subheader("隨機推薦", anchor=False, width="stretch")
+        mode = st.toggle("輪盤模式", value=True, key="wheel_mode", width="content")
+    spin = st.session_state.pop("wheel_pending_animation", None)
+    if not eligible:
+        st.html('<div class="empty-result"><h2>沒有符合條件的餐廳</h2><p>取消幾個條件，再試一次。</p></div>')
+    elif mode:
+        render_wheel(wheel_pool(eligible, filters), current, spin)
+    st.button(
+        "再推薦一家" if current else "幫我決定這一餐", on_click=pick_meal,
+        type="primary", icon=":material/shuffle:", disabled=not eligible,
+        width="stretch", key="pick_meal",
+    )
+    if len(eligible) == 1:
+        st.caption("目前只有 1 間可抽選，會推薦同一家。")
+    elif mode and len(eligible) > UNFILTERED_WHEEL_SIZE and filters == Filters():
+        st.caption("已隨機挑出 20 間上輪盤，結果從盤面名單抽出。")
+    if current is not None:
+        render_recommendation_result(state, current, access, animate=mode and spin is not None)
 
 
 def render_rail(title: str, subtitle: str, restaurants: list[Restaurant], key: str) -> None:
