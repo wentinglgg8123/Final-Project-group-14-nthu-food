@@ -27,14 +27,14 @@ def names(app):
 def test_initial_page_loads_real_catalog_for_every_visitor(app):
     state = app.session_state["picker"]
     assert state.is_default and not state.is_demo and state.selected is None
-    assert state.filename is None and len(state.restaurants) == 10
-    assert len(names(app)) == 10
-    assert "包子商行" in names(app)
+    assert state.filename is None and len(state.restaurants) == 119
+    assert len(names(app)) == 119
+    assert {"包子商行", "紅吱吱牛排館光復店"} <= set(names(app))
     assert "孫東寶牛排" not in names(app)
     assert not app.button(key="pick_meal").disabled
     assert app.pills(key="location_choices").value == []
-    assert len(app.pills(key="location_choices").options) == 2
-    assert len(app.pills(key="category_choices").options) == 18
+    assert len(app.pills(key="location_choices").options) == 17
+    assert len(app.pills(key="category_choices").options) == 33
     assert len(app.selectbox) == 0 and len(app.multiselect) == 0
     assert len(app.pills) == 6
     assert not any("FOODFLIX" in element.value for element in app.get("html"))
@@ -121,7 +121,7 @@ def test_changing_location_hides_selection_and_preserves_history(app):
     assert not app.exception
     assert not any('aria-label="餐廳推薦結果"' in element.value for element in app.get("html"))
     assert app.session_state["picker"].history == [chosen]
-    assert names(app) == ["杜蘭小麥 - 義大利麵.披薩"]
+    assert names(app) == [r.name for r in app.session_state["picker"].restaurants if r.location == "清夜"]
 
 
 def test_legacy_custom_catalog_can_be_cleared_back_to_original_public_data(app):
@@ -143,7 +143,7 @@ def test_legacy_custom_catalog_can_be_cleared_back_to_original_public_data(app):
     assert not app.exception
     state = app.session_state["picker"]
     assert state.is_default and state.filename is None
-    assert len(state.restaurants) == 10 and len(names(app)) == 10
+    assert len(state.restaurants) == 119 and len(names(app)) == 119
     assert state.selected is None and state.history == []
     assert state.warnings == [] and len(app.warning) == 0
     assert "我的餐廳.xlsx" not in " ".join(text.value for text in app.get("html"))
@@ -168,7 +168,7 @@ def test_empty_search_disables_pick_and_reset_clears_every_filter(app):
     assert app.pills(key="pace_choice").value == []
     assert app.checkbox(key="include_closed").value is False
     assert app.text_input(key="query_choice").value == ""
-    assert len(names(app)) == 10
+    assert len(names(app)) == 119
     assert not app.button(key="pick_meal").disabled
 
 
@@ -206,11 +206,11 @@ def test_multiple_locations_cuisines_and_exact_price_levels_union_within_groups(
 
 def test_removing_location_pills_broadens_back_to_the_complete_catalog(app):
     app.pills(key="location_choices").set_value(["小吃部", "清夜"]).run()
-    assert not app.exception and len(names(app)) == 10
+    assert not app.exception and len(names(app)) == 18
     app.pills(key="location_choices").set_value(["清夜"]).run()
-    assert not app.exception and len(names(app)) == 1
+    assert not app.exception and len(names(app)) == 9
     app.pills(key="location_choices").set_value([]).run()
-    assert not app.exception and len(names(app)) == 10
+    assert not app.exception and len(names(app)) == 119
 
 
 def test_complete_table_provides_named_google_maps_links(app):
@@ -225,8 +225,8 @@ def test_complete_table_provides_named_google_maps_links(app):
 
 def test_each_filter_group_can_select_all_and_clear_without_affecting_other_groups(app):
     groups = {
-        "location_choices": 2,
-        "category_choices": 18,
+        "location_choices": 17,
+        "category_choices": 33,
         "price_choices": 5,
         "occasion_choice": 3,
         "pace_choice": 2,
@@ -240,7 +240,7 @@ def test_each_filter_group_can_select_all_and_clear_without_affecting_other_grou
         app.button(key=f"clear_{key}").click().run()
         assert not app.exception
         assert app.pills(key=key).value == []
-        assert len(names(app)) == 10
+        assert len(names(app)) == 119
 
 
 def test_coin_prices_have_the_range_legend_and_readable_table_values(app):
@@ -254,14 +254,14 @@ def test_coin_prices_have_the_range_legend_and_readable_table_values(app):
     assert table.iloc[0]["價格"] == "🪙 · NT$0–100"
     assert "價格等級" not in table.columns
     half_price_names = {"7-ELEVEN", "漢城異國美食", "蘇記牛肉麵", "一番快餐", "好富熟成黑咖哩.台式蓋飯"}
-    for level, count, excluded in ((1, 8, {"麥當勞", "杜蘭小麥 - 義大利麵.披薩"}),
-                                   (2, 7, {"包子商行", "比司多早午餐", "珈名鮮茶"})):
+    for level, count, excluded in ((1, 77, {"麥當勞", "杜蘭小麥 - 義大利麵.披薩"}),
+                                   (2, 90, {"包子商行", "比司多早午餐", "珈名鮮茶"})):
         app.pills(key="price_choices").set_value([level]).run()
         assert not app.exception and len(names(app)) == count
         assert half_price_names <= set(names(app))
         assert excluded.isdisjoint(names(app))
     app.pills(key="price_choices").set_value([1, 2]).run()
-    assert not app.exception and len(names(app)) == len(set(names(app))) == 10
+    assert not app.exception and len(names(app)) == len(set(names(app))) == 117
     app.pills(key="price_choices").set_value([2])
     app.text_input(key="query_choice").set_value("7-ELEVEN").run()
     app.button(key="pick_meal").click().run()
@@ -284,9 +284,9 @@ def test_catalog_pagination_exposes_six_comment_forms_per_page(app):
     assert not app.exception
     assert app.session_state["catalog_page"] == 1
     second_cards = [html.value for html in app.get("html") if '<article class="food-card' in html.value]
-    assert len(second_cards) == 4 and "蘇記牛肉麵" in second_cards[0]
+    assert len(second_cards) == 6 and "蘇記牛肉麵" in second_cards[0]
     assert "包子商行" not in " ".join(second_cards)
-    assert len([field for field in app.text_area if field.key.startswith("review_body_")]) == 4
+    assert len([field for field in app.text_area if field.key.startswith("review_body_")]) == 6
     assert not app.button(key="catalog_previous").disabled
     app.button(key="catalog_previous").click().run()
     assert not app.exception and app.session_state["catalog_page"] == 0
@@ -300,7 +300,7 @@ def test_invalid_review_configuration_keeps_catalog_and_filters_usable(app):
     submit_buttons = [button for button in app.button if (button.key or "").startswith("review_submit_")]
     assert len(submit_buttons) == 6 and all(button.disabled for button in submit_buttons)
     app.pills(key="location_choices").set_value(["清夜"]).run()
-    assert not app.exception and len(names(app)) == 1
+    assert not app.exception and len(names(app)) == 9
     assert not app.button(key="pick_meal").disabled
 
 
@@ -432,7 +432,7 @@ def test_unrelated_query_shows_empty_search_message_and_clearing_hides_results(a
     assert not any(field.key.startswith("review_body_search_") for field in app.text_area)
     assert not any("找不到相近的店家" in info.value for info in app.info)
     assert not any(heading.value == "搜尋結果" for heading in app.subheader)
-    assert len(names(app)) == 10
+    assert len(names(app)) == 119
 
 
 def test_top_search_is_configured_to_update_after_a_short_typing_pause(app):

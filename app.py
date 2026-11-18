@@ -408,7 +408,7 @@ def render_catalog(state: PickerSession, filters: Filters, access: PageReviews) 
 
 def render_footer(state: PickerSession) -> None:
     render_source(state)
-    st.download_button("下載完整名單", DEFAULT_DATA_PATH.read_bytes(), file_name="清大食上傳.xlsx", mime=MIME_XLSX, on_click="ignore", icon=":material/download:")
+    st.download_button("下載完整名單", DEFAULT_DATA_PATH.read_bytes(), file_name="清大食物 最新版.xlsx", mime=MIME_XLSX, on_click="ignore", icon=":material/download:")
     st.caption("金幣依你指定的價格區間對照 Excel 分級；未填價格不推測。店家資訊與實際消費請以現場為準。")
     st.caption("內建名單供所有訪客使用；你額外匯入的名單僅存於自己的工作階段，重新整理後會恢復內建名單。")
 

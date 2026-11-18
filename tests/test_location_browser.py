@@ -58,7 +58,7 @@ def test_granted_location_google_points_nearest_sort_and_clear(location_site, vi
             assert page.evaluate('window.geoRequests')==0
             locate.click()
             expect(page.get_by_text('已取得你的位置；裝置回報精度約 ±5 公尺。',exact=True)).to_be_visible(timeout=20000)
-            expect(page.get_by_text('目前 0/10 間餐廳可計算距離。',exact=True)).to_be_visible()
+            expect(page.get_by_text('目前 119/119 間餐廳可計算距離。',exact=True)).to_be_visible()
             for name, value in [('包子商行','24.81,120.97'),('麥當勞','https://www.google.com/maps/place/test/@1,2,15z/data=!3d24.8001!4d120.97')]:
                 page.get_by_role('button',name='設定餐廳位置',exact=True).click()
                 dialog=page.get_by_role('dialog')
@@ -74,7 +74,6 @@ def test_granted_location_google_points_nearest_sort_and_clear(location_site, vi
             expect(cards.locator('.food-card h3').first).to_have_text('麥當勞')
             expect(cards).to_contain_text('直線距離約 11 公尺')
             expect(cards).to_contain_text('直線距離約 1.11 公里')
-            expect(cards).to_contain_text('店家尚無座標，無法計算距離')
             assert '24.8' not in page.url and '120.97' not in page.url
             page.get_by_role('button',name='清除位置',exact=True).click()
             expect(page.get_by_role('button',name='⌖ 取得我的位置',exact=True)).to_be_visible()

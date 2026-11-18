@@ -10,11 +10,11 @@ from food_picker.session import PickerSession
 
 def test_bundled_catalog_preserves_all_original_rows_and_fields():
     workbook = load_workbook(defaults.DEFAULT_DATA_PATH, read_only=True, data_only=False)
-    rows = [row for row in workbook.worksheets[0].iter_rows(max_col=11, values_only=True) if any(value is not None for value in row)]
+    rows = [row for row in workbook.worksheets[0].iter_rows(max_col=15, values_only=True) if any(value is not None for value in row)]
     workbook.close()
     parsed = defaults.load_default_catalog().restaurants
     assert rows[0][:4] == ("Restaurant", "Location", "Gener", "Price")
-    assert len(rows[1:]) == len(parsed) == 10
+    assert len(rows[1:]) == len(parsed) == 119
     for source, restaurant in zip(rows[1:], parsed, strict=True):
         assert restaurant.name == source[0]
         assert restaurant.location == source[1]
@@ -25,11 +25,13 @@ def test_bundled_catalog_preserves_all_original_rows_and_fields():
             restaurant.one_person, restaurant.dating, restaurant.gathering,
             restaurant.fast_serve, restaurant.slow_eat,
         ) == tuple(value == "O" for value in source[4:9])
-        assert restaurant.latitude is None and restaurant.longitude is None
+        assert (restaurant.latitude, restaurant.longitude) == source[11:13]
+        if source[14]:
+            assert restaurant.id == source[14]
         assert restaurant.opening_hours == (source[9] or "")
         assert restaurant.special_opening_hours == (source[10] or "")
         assert restaurant.note == ""
-    assert sum(restaurant.price_level == 1.5 for restaurant in parsed) == 5
+    assert sum(restaurant.price_level == 1.5 for restaurant in parsed) == 50
     assert defaults.load_default_catalog().warnings == []
 
 
@@ -38,8 +40,8 @@ def test_current_source_rows_are_all_available_for_recommendations():
     closed = [restaurant for restaurant in result.restaurants if restaurant.is_closed]
     assert closed == []
     session = PickerSession()
-    assert len(session.candidates(Filters())) == 10
-    assert len(session.candidates(Filters(include_closed=True))) == 10
+    assert len(session.candidates(Filters())) == 119
+    assert len(session.candidates(Filters(include_closed=True))) == 119
 
 
 def test_each_default_load_returns_independent_mutable_collections():
@@ -50,7 +52,7 @@ def test_each_default_load_returns_independent_mutable_collections():
     assert first.warnings is not second.warnings
     first.restaurants.clear()
     first.warnings.append("只屬於第一個讀取結果")
-    assert len(second.restaurants) == 10
+    assert len(second.restaurants) == 119
     assert "只屬於第一個讀取結果" not in second.warnings
 
 
@@ -76,5 +78,5 @@ def test_session_import_and_reset_do_not_change_bundled_workbook():
     session = PickerSession()
     session.restaurants.clear()
     session.reset()
-    assert len(session.restaurants) == 10
+    assert len(session.restaurants) == 119
     assert defaults.DEFAULT_DATA_PATH.read_bytes() == before

@@ -107,7 +107,7 @@ def test_missing_rating_rpc_preserves_old_reviews_and_disables_all_context_submi
     assert html(app).count('class="review-unrated">未評分') == 3
     assert sum("評分功能尚待啟用" in message.value for message in app.info) == 1
     api.calls.clear()
-    app.pills(key="category_choices").set_value(["牛排"]).run()
+    app.pills(key="category_choices").set_value(["早餐"]).run()
     assert not app.exception and not app.button(key="pick_meal").disabled
     assert [path for _, path, _ in api.calls] == [
         "/rest/v1/rpc/food_picker_reviews_for_restaurants_v2",

@@ -26,7 +26,7 @@ def test_coordinate_editor_and_nearest_sort_and_current_session_only():
     assert page.dataframe[0].value.iloc[0]['直線距離（公尺）'] == 0
     another = AppTest.from_file(str(ENTRY), default_timeout=20).run()
     assert another.session_state['picker'].user_location is None
-    assert another.session_state['picker'].restaurants[0].latitude is None
+    assert another.session_state['picker'].restaurants[0].latitude == 24.79434
 
 
 def test_google_places_does_not_apply_an_unconfirmed_candidate(monkeypatch):
@@ -44,7 +44,7 @@ def test_google_places_does_not_apply_an_unconfirmed_candidate(monkeypatch):
     original_id=page.session_state['picker'].restaurants[0].id
     page.button(key='lookup_places').click().run()
     assert queries==[original_id]
-    assert page.session_state['picker'].restaurants[0].latitude is None
+    assert page.session_state['picker'].restaurants[0].latitude == 24.79434
     page.selectbox(key=f'place_candidate_{original_id}').select(1).run()
     page.button(key='apply_place').click().run()
     assert not page.exception
