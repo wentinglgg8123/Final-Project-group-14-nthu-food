@@ -517,3 +517,46 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
   font-size: .85rem;
 }
 .favorite-storage-status:not(:empty) { margin-top: .4rem; }
+
+.favorite-draw-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  min-height: 36px;
+  color: var(--ink);
+  font-size: .875rem;
+  cursor: pointer;
+}
+.favorite-draw-filter input {
+  appearance: none;
+  position: relative;
+  width: 2.25rem;
+  height: 1.3rem;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--soft);
+  cursor: pointer;
+}
+.favorite-draw-filter input::before {
+  content: "";
+  position: absolute;
+  top: .15rem;
+  left: .15rem;
+  width: .875rem;
+  height: .875rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.favorite-draw-filter input:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.favorite-draw-filter input:checked::before {
+  transform: translateX(.9rem);
+  background: white;
+}
+.favorite-draw-filter input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

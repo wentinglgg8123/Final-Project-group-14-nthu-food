@@ -785,3 +785,56 @@ def test_favorites_sync_between_cards_and_survive_reload(page):
 
     page.reload()
     expect(catalog_button).to_have_attribute("aria-pressed", "false")
+
+
+def test_favorites_switch_limits_draws_and_updates_when_favorites_change(page):
+    switch = page.get_by_role("switch", name="只抽我的最愛", exact=True)
+    pick = page.locator(".st-key-pick_meal button")
+    expect(switch).not_to_be_checked()
+    switch.check()
+    _expect_count(page, 119, available=0)
+    expect(pick).to_be_disabled()
+    expect(page.get_by_text("目前沒有符合條件的收藏餐廳。", exact=False)).to_be_visible()
+
+    catalog = page.locator(".st-key-catalog_grid")
+    favorite_buttons = [
+        catalog.get_by_role("button", name=f"收藏 {name}", exact=True)
+        for name in ("包子商行", "麥當勞")
+    ]
+    for button in favorite_buttons:
+        button.click()
+    _expect_count(page, 119, available=2)
+    pool = page.locator(".wheel-entries li")
+    expect(pool).to_have_count(2)
+    assert set(pool.all_text_contents()) == {"包子商行", "麥當勞"}
+
+    _select_pills(page, "地點", ["清夜"])
+    _expect_count(page, 9, available=0)
+    expect(pick).to_be_disabled()
+    _toggle_pill_off(page, "地點", "清夜")
+    _expect_count(page, 119, available=2)
+
+    pick.click()
+    result = page.locator(f"{RESULT} h2")
+    expect(result).to_be_visible()
+    first = result.inner_text()
+    assert first in {"包子商行", "麥當勞"}
+
+    page.get_by_text("輪盤模式", exact=True).click()
+    expect(pool).to_have_count(0)
+    _wait_idle(page)
+    expect(result).to_have_count(1)
+    pick.click()
+    _wait_idle(page)
+    expect(result).to_have_text("麥當勞" if first == "包子商行" else "包子商行")
+
+    for button in favorite_buttons:
+        button.click()
+    _expect_count(page, 119, available=0)
+    expect(pick).to_be_disabled()
+    expect(result).to_have_count(0)
+
+    page.get_by_role("button", name="全部取消", exact=True).click()
+    expect(switch).not_to_be_checked()
+    _expect_count(page, 119)
+    expect(pick).to_be_enabled()

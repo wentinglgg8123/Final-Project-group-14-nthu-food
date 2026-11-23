@@ -1,5 +1,6 @@
 """Python food discovery website with a quiet, light interface."""
 
+from dataclasses import replace
 from html import escape
 from pathlib import Path
 from random import SystemRandom
@@ -12,7 +13,10 @@ from food_picker.location_ui import render_location
 from food_picker.catalog import location_label, restaurant_categories
 from food_picker.defaults import DEFAULT_DATA_PATH
 from food_picker.excel import build_template, export_restaurants, parse_excel
-from food_picker.favorites_ui import render_favorite_button, render_favorites
+from food_picker.favorite_controls import (
+    favorite_draw_ids, render_favorite_button, render_favorite_draw_filter, render_favorites,
+    reset_favorite_draw_filter,
+)
 from food_picker.models import Filters, Restaurant, ValidationError
 from food_picker.presentation import (
     area_label, coin_label, feature_labels, food_icon, hours_html, map_url, poster_tone,
@@ -86,6 +90,7 @@ def picker() -> PickerSession:
 def reset_filters() -> None:
     for key, value in FILTER_DEFAULTS.items():
         st.session_state[key] = list(value) if isinstance(value, list) else value
+    reset_favorite_draw_filter()
 
 
 def set_filter_choices(key: str, choices: list) -> None:
@@ -124,14 +129,22 @@ def read_filters() -> Filters:
     )
 
 
+def recommendation_picker(state: PickerSession, favorite_ids: frozenset[str] | None) -> PickerSession:
+    if favorite_ids is None:
+        return state
+    return replace(state, restaurants=[r for r in state.restaurants if r.id in favorite_ids])
+
+
 def pick_meal() -> None:
-    state, filters = picker(), read_filters()
+    state, filters, favorite_ids = picker(), read_filters(), favorite_draw_ids()
+    draw_state = recommendation_picker(state, favorite_ids)
     previous_id = state.selected.id if state.selected else None
-    selected = state.choose(filters)
+    selected = draw_state.choose(filters)
+    state.selected, state.history = draw_state.selected, draw_state.history
     if selected is not None and st.session_state.get("wheel_mode", True):
         spin = st.session_state.get("wheel_round", 0) + 1
         st.session_state["wheel_round"] = spin
-        st.session_state["wheel_animation"] = (spin, filters, selected.id, previous_id)
+        st.session_state["wheel_animation"] = (spin, (filters, favorite_ids), selected.id, previous_id)
 
 
 def clear_import() -> None:
@@ -311,6 +324,7 @@ def render_filters(state: PickerSession) -> Filters:
             render_filter_group("用餐情境", ["一個人吃", "約會", "聚餐"], "occasion_choice")
         with paces:
             render_filter_group("用餐節奏", ["快速上菜", "慢慢享用"], "pace_choice")
+    render_favorite_draw_filter()
     with st.expander("更多選項"):
         st.html(price_legend_html())
         st.caption("半枚級距符合相鄰兩組，例如 1.5 可選 1 或 2 枚。用餐情境、節奏需同時符合各自選取的項目。")
@@ -321,7 +335,8 @@ def render_filters(state: PickerSession) -> Filters:
             st.number_input("最高均消（元）", min_value=0.0, value=None, key="max_price_choice", help="僅適用舊版中文名單中提供均消的資料。")
     filters = read_filters()
     candidates = state.candidates(filters)
-    available = sum(not r.is_closed for r in candidates)
+    favorite_ids = favorite_draw_ids()
+    available = sum(not r.is_closed and (favorite_ids is None or r.id in favorite_ids) for r in candidates)
     st.caption(f"{len(candidates)} 間符合條件 · {available} 間可抽選")
     if state.user_location is not None and filters.radius_meters is not None:
         render_radius_preview(state.user_location, filters.radius_meters, candidates)
@@ -358,8 +373,10 @@ def render_recommendation_result(
 
 
 def render_recommendation(state: PickerSession, filters: Filters, access: PageReviews) -> None:
-    eligible = [restaurant for restaurant in state.candidates(filters) if not restaurant.is_closed]
-    current = state.current(filters)
+    favorite_ids = favorite_draw_ids()
+    draw_state = recommendation_picker(state, favorite_ids)
+    eligible = [restaurant for restaurant in draw_state.candidates(filters) if not restaurant.is_closed]
+    current = draw_state.current(filters)
     with st.container(horizontal=True, vertical_alignment="center"):
         st.subheader("隨機推薦", anchor=False, width="stretch")
         mode = st.toggle("輪盤模式", value=True, key="wheel_mode", width="content")
@@ -374,13 +391,16 @@ def render_recommendation(state: PickerSession, filters: Filters, access: PageRe
     spin, previous_id = None, None
     if animation := st.session_state.get("wheel_animation"):
         draw, draw_filters, winner_id, start_id = animation
-        if mode and current is not None and current.id == winner_id and filters == draw_filters:
+        if mode and current is not None and current.id == winner_id and (filters, favorite_ids) == draw_filters:
             spin, previous_id = draw, start_id
         else:
             st.session_state.pop("wheel_animation")
     with st.container(key="wheel_stage"):
         if not eligible:
-            st.html('<div class="empty-result"><h2>沒有符合條件的餐廳</h2><p>取消幾個條件，再試一次。</p></div>')
+            if favorite_ids is not None:
+                st.info("目前沒有符合條件的收藏餐廳。可以先收藏店家，或調整篩選條件。")
+            else:
+                st.html('<div class="empty-result"><h2>沒有符合條件的餐廳</h2><p>取消幾個條件，再試一次。</p></div>')
         elif mode:
             render_wheel(eligible, current, spin, previous_id)
         st.button(

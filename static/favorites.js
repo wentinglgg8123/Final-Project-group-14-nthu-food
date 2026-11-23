@@ -96,7 +96,28 @@ function renderList(content, status) {
   content.replaceChildren(list);
 }
 
-export default function ({ parentElement, data }) {
+function renderDrawFilter(content, ids, setStateValue) {
+  const label = document.createElement("label");
+  label.className = "favorite-draw-filter";
+  const toggle = document.createElement("input");
+  toggle.type = "checkbox";
+  toggle.setAttribute("role", "switch");
+  toggle.checked = ids !== null;
+  label.append(toggle, "只抽我的最愛");
+  content.append(label);
+  let last = JSON.stringify(ids);
+  const sync = () => {
+    const next = toggle.checked ? readFavorites().map(item => item.id).sort() : null;
+    const signature = JSON.stringify(next);
+    if (signature === last) return;
+    last = signature;
+    setStateValue("ids", next);
+  };
+  toggle.onchange = sync;
+  return sync;
+}
+
+export default function ({ parentElement, data, setStateValue }) {
   const root = parentElement.querySelector(".restaurant-favorites");
   const content = document.createElement("div");
   const status = document.createElement("p");
@@ -118,6 +139,8 @@ export default function ({ parentElement, data }) {
       button.setAttribute("aria-pressed", String(saved));
       button.textContent = saved ? "★ 已收藏" : "☆ 收藏";
     };
+  } else if (data?.drawFilter) {
+    refresh = renderDrawFilter(content, data.ids, setStateValue);
   } else {
     refresh = () => renderList(content, status);
   }
