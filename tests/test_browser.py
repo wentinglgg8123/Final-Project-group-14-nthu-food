@@ -838,3 +838,39 @@ def test_favorites_switch_limits_draws_and_updates_when_favorites_change(page):
     expect(switch).not_to_be_checked()
     _expect_count(page, 119)
     expect(pick).to_be_enabled()
+
+
+def test_small_wheel_keeps_long_names_upright_and_inside_zoom(page):
+    names = [
+        "包子商行", "麥當勞", "杜蘭小麥 - 義大利麵.披薩", "好富熟成黑咖哩.台式蓋飯",
+    ]
+    workbook = _workbook([EXCEL_HEADERS, *[[name, "小吃部", "Bento", 2] for name in names]])
+    dialog = _upload(page, workbook, "四間餐廳.xlsx")
+    expect(dialog).not_to_be_visible()
+    _expect_count(page, 4)
+
+    wheel = page.locator(".restaurant-wheel")
+    labels = wheel.locator(".wheel-label")
+    expect(labels).to_have_count(4)
+    assert sorted(labels.all_text_contents()) == sorted(names)
+    page.locator(".st-key-pick_meal button").click()
+    expect(wheel.locator(".wheel-face")).to_have_css("transform", "matrix(1.12, 0, 0, 1.12, 0, 0)")
+    result = page.locator(f"{RESULT} h2")
+    expect(result).to_be_visible()
+    expect(wheel.locator(".wheel-winner .wheel-label")).to_have_text(result.inner_text())
+    assert labels.evaluate_all(
+        """labels => labels.every(label => {
+            const sector = label.parentElement;
+            const rotor = sector.parentElement;
+            const rotation = [rotor, sector, label].reduce(
+                (matrix, element) => matrix.multiply(new DOMMatrix(getComputedStyle(element).transform)),
+                new DOMMatrix()
+            );
+            const bounds = label.getBoundingClientRect();
+            const view = label.closest('.wheel-viewport').getBoundingClientRect();
+            return Math.abs(rotation.b) < .001 && rotation.a > .999 &&
+                bounds.left >= view.left && bounds.right <= view.right &&
+                bounds.top >= view.top && bounds.bottom <= view.bottom &&
+                label.scrollHeight <= label.clientHeight + 1;
+        })"""
+    )

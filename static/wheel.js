@@ -6,19 +6,24 @@ export default function ({ parentElement, data }) {
   const status = parentElement.querySelector(".wheel-status");
   const { names, winner, start, spin } = data;
   const size = names.length;
+  const sparse = size <= 8;
   const signature = JSON.stringify(data);
   if (wheel.dataset.draw === signature) return;
   wheel.dataset.draw = signature;
   wheel.removeAttribute("data-wheel-stopped");
   wheel.removeAttribute("data-wheel-spinning");
+  wheel.classList.toggle("wheel-sparse", sparse);
   status.textContent = "";
   for (const animation of rotor.getAnimations()) animation.cancel();
 
   const step = 360 / size;
+  const stopAngle = -winner * step;
+  const zoom = sparse ? 1.12 : size <= 12 ? 2.25 : size <= 35 ? 3.1 : 3.6;
+  wheel.style.setProperty("--wheel-zoom", String(zoom));
   const stops = [];
   const labels = document.createDocumentFragment();
   // Allocate text near the wider rim, leaving space at each sector boundary.
-  const labelWidth = size <= 12 ? "36%" : size <= 35 ? "25%" : "18%";
+  const labelWidth = size <= 4 ? "30%" : sparse ? "22%" : size <= 12 ? "36%" : size <= 35 ? "25%" : "18%";
   rotor.style.setProperty("--wheel-label-width", labelWidth);
   rotor.style.setProperty("--wheel-label-size", `min(.7rem, ${155 / Math.min(size, 120)}cqw)`);
   if (size > 2 && size <= 120) {
@@ -41,6 +46,7 @@ export default function ({ parentElement, data }) {
       spoke.style.setProperty("--spoke-angle", `${index * step}deg`);
       const label = document.createElement("span");
       label.className = "wheel-label";
+      if (sparse) label.style.setProperty("--wheel-label-turn", `${winner * step - index * step}deg`);
       label.textContent = names[index];
       label.title = names[index];
       spoke.append(label);
@@ -52,7 +58,6 @@ export default function ({ parentElement, data }) {
   rotor.replaceChildren(labels, hub);
   const gradient = () => `conic-gradient(from ${-step / 2}deg,${stops.join(",")})`;
   rotor.style.background = gradient();
-  const stopAngle = -winner * step;
   rotor.style.transform = `rotate(${stopAngle}deg)`;
 
   wheel.dataset.wheelReady = "";

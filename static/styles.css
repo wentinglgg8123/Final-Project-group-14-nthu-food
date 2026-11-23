@@ -382,7 +382,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
 .wheel-face { transform-origin: top center; }
 @media (prefers-reduced-motion: no-preference) {
   .restaurant-wheel[data-wheel-stopped] .wheel-face {
-    transform: scale(3.6);
+    transform: scale(var(--wheel-zoom, 3.6));
     transition: transform .65s cubic-bezier(.22, .61, .36, 1) .12s;
   }
 }
@@ -434,6 +434,19 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
   transform: translateY(-50%) rotate(-90deg) translateX(calc(46cqw - 100%));
   transform-origin: left center;
   pointer-events: auto;
+}
+.wheel-sparse .wheel-label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  top: 22%;
+  font-size: min(.85rem, 3.8cqw);
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  transform: translate(-50%, -50%) rotate(var(--wheel-label-turn));
+  transform-origin: center;
 }
 .restaurant-wheel[data-wheel-stopped] .wheel-winner .wheel-label {
   color: #154b39;
