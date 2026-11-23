@@ -1,4 +1,4 @@
-"""Render the wheel and pass the server's selection to the animation."""
+"""Render the restaurant roulette and animate the server's selection."""
 
 from html import escape
 from pathlib import Path

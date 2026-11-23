@@ -21,7 +21,7 @@ from food_picker.reviews import ReviewError, configured_review_store
 from food_picker.review_ui import render_reviews
 from food_picker.search import find_restaurants, suggest_restaurants
 from food_picker.session import PickerSession
-from food_picker.wheel_ui import render_wheel, render_wheel_entries
+from food_picker.roulette_ui import render_wheel, render_wheel_entries
 
 ROOT = Path(__file__).parent
 MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
