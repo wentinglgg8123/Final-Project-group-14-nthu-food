@@ -384,6 +384,11 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
   transform: translateY(-50%) rotate(-90deg) translateX(20%);
   transform-origin: left center;
 }
+.wheel-number {
+  width: 43%;
+  font-size: .48rem;
+  transform: translateY(-50%) rotate(-90deg) translateX(11%);
+}
 .wheel-entries {
   max-width: 22rem;
   margin: 0 auto;

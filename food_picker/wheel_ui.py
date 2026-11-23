@@ -12,6 +12,8 @@ COLORS = ("#eaf3e6", "#f8e6c7", "#f2d9ce", "#d9e9f4", "#daeade")
 
 def render_wheel(pool: list[Restaurant], winner: Restaurant | None, spin: int | None) -> None:
     step = 360 / len(pool)
+    numbered = len(pool) > 20
+    label_class = "wheel-label wheel-number" if numbered else "wheel-label"
     stops = []
     labels = []
     entries = []
@@ -22,11 +24,11 @@ def render_wheel(pool: list[Restaurant], winner: Restaurant | None, spin: int | 
         if index == len(pool) - 1 and index and color == COLORS[0]:
             color = COLORS[1]
         stops.append(f"{color} {index * step:.5f}deg {(index + 1) * step:.5f}deg")
-        if len(pool) <= 60:
-            label = name if len(pool) <= 20 else str(index + 1)
+        if len(pool) <= 120:
+            label = str(index + 1) if numbered else name
             labels.append(
                 f'<span class="wheel-spoke" style="--spoke-angle:{index * step:.5f}deg">'
-                f'<span class="wheel-label">{label}</span></span>'
+                f'<span class="{label_class}">{label}</span></span>'
             )
         entries.append(f"<li>{name}</li>")
         if winner is not None and restaurant.id == winner.id:

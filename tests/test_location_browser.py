@@ -79,7 +79,7 @@ def test_radius_menu_filters_wheel_and_catalog_and_resets_with_location(location
         page.get_by_role('button', name='清除位置', exact=True).click()
         expect(page.get_by_text('119 間符合條件 · 119 間可抽選', exact=True)).to_be_visible()
         expect(page.locator('.radius-diagram')).to_have_count(0)
-        expect(page.locator('.wheel-entries li')).to_have_count(20)
+        expect(page.locator('.wheel-entries li')).to_have_count(119)
         browser.close()
 
 

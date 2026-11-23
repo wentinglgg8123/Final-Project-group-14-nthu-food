@@ -1,6 +1,5 @@
 """Keep each visitor's current catalog and recommendations in their own session."""
 
-from collections.abc import Collection
 from dataclasses import dataclass, field, replace
 from random import Random
 
@@ -70,15 +69,9 @@ class PickerSession:
             return self.selected
         return None
 
-    def choose(
-        self, filters: Filters, rng: Random | None = None, *,
-        pool_ids: Collection[str] | None = None,
-    ) -> Restaurant | None:
+    def choose(self, filters: Filters, rng: Random | None = None) -> Restaurant | None:
         previous_id = self.selected.id if self.selected else None
-        eligible = [
-            restaurant for restaurant in self.candidates(filters)
-            if not restaurant.is_closed and (pool_ids is None or restaurant.id in pool_ids)
-        ]
+        eligible = [restaurant for restaurant in self.candidates(filters) if not restaurant.is_closed]
         self.selected = choose_restaurant(eligible, previous_id, rng)
         if self.selected:
             self.history = [self.selected, *[r for r in self.history if r.id != self.selected.id]][:3]

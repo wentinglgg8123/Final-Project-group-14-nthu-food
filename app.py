@@ -2,7 +2,6 @@
 
 from html import escape
 from pathlib import Path
-from random import SystemRandom
 from unicodedata import normalize
 
 import streamlit as st
@@ -33,7 +32,6 @@ FILTER_DEFAULTS = {
 }
 CATALOG_PAGE_SIZE = 6
 SEARCH_PAGE_SIZE = 3
-UNFILTERED_WHEEL_SIZE = 20
 
 
 class PageReviews:
@@ -124,27 +122,9 @@ def read_filters() -> Filters:
     )
 
 
-def wheel_pool(eligible: list[Restaurant], filters: Filters) -> list[Restaurant]:
-    if filters != Filters() or len(eligible) <= UNFILTERED_WHEEL_SIZE:
-        return eligible
-    signature = tuple(restaurant.id for restaurant in eligible)
-    if st.session_state.get("wheel_catalog") != signature:
-        st.session_state["wheel_catalog"] = signature
-        st.session_state["wheel_sample"] = [
-            restaurant.id for restaurant in SystemRandom().sample(eligible, UNFILTERED_WHEEL_SIZE)
-        ]
-    by_id = {restaurant.id: restaurant for restaurant in eligible}
-    return [by_id[restaurant_id] for restaurant_id in st.session_state["wheel_sample"]]
-
-
 def pick_meal() -> None:
-    state, filters = picker(), read_filters()
-    if not st.session_state.get("wheel_mode", True):
-        state.choose(filters)
-        return
-    eligible = [restaurant for restaurant in state.candidates(filters) if not restaurant.is_closed]
-    pool = wheel_pool(eligible, filters)
-    if state.choose(filters, pool_ids={restaurant.id for restaurant in pool}) is not None:
+    selected = picker().choose(read_filters())
+    if selected is not None and st.session_state.get("wheel_mode", True):
         spin = st.session_state.get("wheel_round", 0) + 1
         st.session_state["wheel_round"] = spin
         st.session_state["wheel_pending_animation"] = spin
@@ -380,7 +360,7 @@ def render_recommendation(state: PickerSession, filters: Filters, access: PageRe
     if not eligible:
         st.html('<div class="empty-result"><h2>沒有符合條件的餐廳</h2><p>取消幾個條件，再試一次。</p></div>')
     elif mode:
-        render_wheel(wheel_pool(eligible, filters), current, spin)
+        render_wheel(eligible, current, spin)
     st.button(
         "再推薦一家" if current else "幫我決定這一餐", on_click=pick_meal,
         type="primary", icon=":material/shuffle:", disabled=not eligible,
@@ -388,8 +368,6 @@ def render_recommendation(state: PickerSession, filters: Filters, access: PageRe
     )
     if len(eligible) == 1:
         st.caption("目前只有 1 間可抽選，會推薦同一家。")
-    elif mode and len(eligible) > UNFILTERED_WHEEL_SIZE and filters == Filters():
-        st.caption("已隨機挑出 20 間上輪盤，結果從盤面名單抽出。")
     if current is not None:
         render_recommendation_result(state, current, access, animate=mode and spin is not None)
 

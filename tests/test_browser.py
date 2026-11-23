@@ -226,21 +226,23 @@ def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page
     for label in ("地點", "食物種類"):
         expect(_filter_menu(page, label)).to_be_visible()
     _expect_count(page, 119)
+    pool = page.locator(".wheel-entries li").all_text_contents()
+    expected = [restaurant.name for restaurant in load_default_catalog().restaurants if not restaurant.is_closed]
+    assert len(pool) == 119
+    assert pool == expected
+    expect(page.locator(".wheel-spoke")).to_have_count(119)
     expect(page.get_by_role("button", name="下載完整名單", exact=True)).to_be_visible()
     page.get_by_role("button", name="幫我決定這一餐", exact=True).click()
     result = page.locator(f"{RESULT} h2")
     expect(result).not_to_have_text(re.compile(r"^示範・"))
-    pool = page.locator(".wheel-entries li").all_text_contents()
-    assert len(set(pool)) == len(pool) == 20
-    assert set(pool) <= {restaurant.name for restaurant in load_default_catalog().restaurants}
     expect(page.locator(".wheel-spinning")).to_have_css("animation-name", "restaurant-spin")
     expect(result).to_be_visible()
     previous = result.inner_text()
     angle = float(page.locator(".wheel-rotor").evaluate(
         "element => parseFloat(element.style.getPropertyValue('--wheel-angle'))"
     ))
-    assert angle == pytest.approx(1440 - pool.index(previous) * 18)
     assert previous in pool
+    assert angle == pytest.approx(1440 - pool.index(previous) * 360 / len(pool), abs=1e-5)
     for _ in range(3):
         page.get_by_role("button", name="再推薦一家", exact=True).click()
         expect(result).not_to_have_text(previous)
