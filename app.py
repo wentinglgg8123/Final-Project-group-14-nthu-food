@@ -2,6 +2,7 @@
 
 from html import escape
 from pathlib import Path
+from random import SystemRandom
 from unicodedata import normalize
 
 import streamlit as st
@@ -358,6 +359,14 @@ def render_recommendation(state: PickerSession, filters: Filters, access: PageRe
     with st.container(horizontal=True, vertical_alignment="center"):
         st.subheader("隨機推薦", anchor=False, width="stretch")
         mode = st.toggle("輪盤模式", value=True, key="wheel_mode", width="content")
+    if mode and eligible:
+        restaurants_by_id = {restaurant.id: restaurant for restaurant in eligible}
+        order = st.session_state.get("wheel_order", [])
+        if set(order) != restaurants_by_id.keys():
+            order = list(restaurants_by_id)
+            SystemRandom().shuffle(order)
+            st.session_state["wheel_order"] = order
+        eligible = [restaurants_by_id[restaurant_id] for restaurant_id in order]
     spin, previous_id = None, None
     if animation := st.session_state.get("wheel_animation"):
         draw, draw_filters, winner_id, start_id = animation

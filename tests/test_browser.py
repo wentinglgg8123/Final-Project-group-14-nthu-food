@@ -229,8 +229,9 @@ def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page
     pool = page.locator(".wheel-entries li").all_text_contents()
     expected = [restaurant.name for restaurant in load_default_catalog().restaurants if not restaurant.is_closed]
     assert len(pool) == 119
-    assert pool == expected
-    expect(page.locator(".wheel-label")).to_have_text(expected)
+    assert sorted(pool) == sorted(expected)
+    assert pool != expected
+    expect(page.locator(".wheel-label")).to_have_text(pool)
     expect(page.locator(".wheel-spoke").first).to_have_css("clip-path", re.compile(r"^polygon\("))
     expect(page.get_by_role("button", name="下載完整名單", exact=True)).to_be_visible()
     wheel = page.locator(".restaurant-wheel")
@@ -271,6 +272,7 @@ def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page
     page.get_by_role("button", name="下一頁", exact=True).click()
     _wait_idle(page)
     expect(result).to_be_hidden()
+    expect(wheel.locator(".wheel-label")).to_have_text(pool)
     rotor.evaluate("element => element.getAnimations()[0].play()")
     expect(wheel).to_have_attribute("data-wheel-stopped", "")
     expect(page.get_by_role("button", name="再推薦一家", exact=True)).to_be_visible()
@@ -301,6 +303,7 @@ def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page
         page.get_by_role("button", name="再推薦一家", exact=True).click()
         expect(result).not_to_have_text(previous)
         expect(result).to_be_visible()
+        expect(wheel.locator(".wheel-label")).to_have_text(pool)
         previous = result.inner_text()
         assert previous in pool
     page.get_by_text("輪盤模式", exact=True).click()
