@@ -12,6 +12,7 @@ from food_picker.location_ui import render_location
 from food_picker.catalog import location_label, restaurant_categories
 from food_picker.defaults import DEFAULT_DATA_PATH
 from food_picker.excel import build_template, export_restaurants, parse_excel
+from food_picker.favorites_ui import render_favorite_button, render_favorites
 from food_picker.models import Filters, Restaurant, ValidationError
 from food_picker.presentation import (
     area_label, coin_label, feature_labels, food_icon, hours_html, map_url, poster_tone,
@@ -195,6 +196,7 @@ def render_restaurant_cards(restaurants: list[Restaurant], access: PageReviews, 
                 key = f"restaurant_{restaurant.id}" if context == "catalog" else f"{context}_restaurant_{restaurant.id}"
                 with st.container(border=True, key=key):
                     st.html(restaurant_card(restaurant))
+                    render_favorite_button(restaurant, context=context)
                     if picker().user_location is not None:
                         st.caption(distance_text(restaurant, picker().user_location))
                     render_reviews(restaurant, access.store, reviews.get(restaurant.id, []),
@@ -345,7 +347,9 @@ def render_recommendation_result(
         )
         if state.user_location is not None:
             st.caption(distance_text(current, state.user_location))
-        st.link_button("在 Google 地圖查看", map_url(current), icon=":material/map:")
+        with st.container(horizontal=True, vertical_alignment="center", gap="small"):
+            st.link_button("在 Google 地圖查看", map_url(current), icon=":material/map:")
+            render_favorite_button(current, context="recommendation")
         reviews = access.load([current])
         access.show_status()
         with st.container(key="recommendation_reviews"):
@@ -462,6 +466,7 @@ def main() -> None:
     access = PageReviews()
     render_search(state, access)
     render_header()
+    render_favorites()
     render_location(state)
     with st.container(border=True, key="filters_panel"):
         filters = render_filters(state)

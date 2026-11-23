@@ -746,3 +746,42 @@ def test_rapid_typing_and_clear_cancel_pending_live_search_updates(page):
     expect(query).to_be_focused()
     expect(query).to_have_value("麥當勞")
     expect(results.get_by_role("heading", name="包子商行", exact=True)).to_have_count(0)
+
+
+def test_favorites_sync_between_cards_and_survive_reload(page):
+    name = "包子商行"
+    list_header = page.get_by_text("我的最愛", exact=True)
+    list_header.click()
+    empty = page.get_by_text("還沒有收藏。點餐廳的星號就能加入。", exact=True)
+    expect(empty).to_be_visible()
+
+    catalog_button = page.locator(".st-key-catalog_grid").get_by_role(
+        "button", name=f"收藏 {name}", exact=True
+    )
+    expect(catalog_button).to_have_attribute("aria-pressed", "false")
+    catalog_button.click()
+    expect(catalog_button).to_have_attribute("aria-pressed", "true")
+    favorite_list = page.locator(".favorite-list")
+    expect(favorite_list.get_by_role("link", name=name, exact=True)).to_be_visible()
+
+    _query(page, name)
+    search_button = page.locator(".st-key-search_results").get_by_role(
+        "button", name=f"收藏 {name}", exact=True
+    )
+    expect(search_button).to_have_attribute("aria-pressed", "true")
+    page.get_by_role("button", name="幫我決定這一餐", exact=True).click()
+    recommendation_button = page.locator(".st-key-pick_panel").get_by_role(
+        "button", name=f"收藏 {name}", exact=True
+    )
+    expect(recommendation_button).to_have_attribute("aria-pressed", "true")
+
+    page.reload()
+    expect(catalog_button).to_have_attribute("aria-pressed", "true")
+    list_header.click()
+    expect(favorite_list.get_by_role("link", name=name, exact=True)).to_be_visible()
+    favorite_list.get_by_role("button", name=f"取消收藏 {name}", exact=True).click()
+    expect(empty).to_be_visible()
+    expect(catalog_button).to_have_attribute("aria-pressed", "false")
+
+    page.reload()
+    expect(catalog_button).to_have_attribute("aria-pressed", "false")
