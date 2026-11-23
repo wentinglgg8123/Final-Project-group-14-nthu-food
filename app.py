@@ -21,7 +21,7 @@ from food_picker.reviews import ReviewError, configured_review_store
 from food_picker.review_ui import render_reviews
 from food_picker.search import find_restaurants, suggest_restaurants
 from food_picker.session import PickerSession
-from food_picker.wheel_ui import render_wheel
+from food_picker.wheel_ui import render_wheel, render_wheel_entries
 
 ROOT = Path(__file__).parent
 MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -123,11 +123,13 @@ def read_filters() -> Filters:
 
 
 def pick_meal() -> None:
-    selected = picker().choose(read_filters())
+    state, filters = picker(), read_filters()
+    previous_id = state.selected.id if state.selected else None
+    selected = state.choose(filters)
     if selected is not None and st.session_state.get("wheel_mode", True):
         spin = st.session_state.get("wheel_round", 0) + 1
         st.session_state["wheel_round"] = spin
-        st.session_state["wheel_pending_animation"] = spin
+        st.session_state["wheel_animation"] = (spin, filters, selected.id, previous_id)
 
 
 def clear_import() -> None:
@@ -356,16 +358,25 @@ def render_recommendation(state: PickerSession, filters: Filters, access: PageRe
     with st.container(horizontal=True, vertical_alignment="center"):
         st.subheader("隨機推薦", anchor=False, width="stretch")
         mode = st.toggle("輪盤模式", value=True, key="wheel_mode", width="content")
-    spin = st.session_state.pop("wheel_pending_animation", None)
-    if not eligible:
-        st.html('<div class="empty-result"><h2>沒有符合條件的餐廳</h2><p>取消幾個條件，再試一次。</p></div>')
-    elif mode:
-        render_wheel(eligible, current, spin)
-    st.button(
-        "再推薦一家" if current else "幫我決定這一餐", on_click=pick_meal,
-        type="primary", icon=":material/shuffle:", disabled=not eligible,
-        width="stretch", key="pick_meal",
-    )
+    spin, previous_id = None, None
+    if animation := st.session_state.get("wheel_animation"):
+        draw, draw_filters, winner_id, start_id = animation
+        if mode and current is not None and current.id == winner_id and filters == draw_filters:
+            spin, previous_id = draw, start_id
+        else:
+            st.session_state.pop("wheel_animation")
+    with st.container(key="wheel_stage"):
+        if not eligible:
+            st.html('<div class="empty-result"><h2>沒有符合條件的餐廳</h2><p>取消幾個條件，再試一次。</p></div>')
+        elif mode:
+            render_wheel(eligible, current, spin, previous_id)
+        st.button(
+            "再推薦一家" if current else "幫我決定這一餐", on_click=pick_meal,
+            type="primary", icon=":material/shuffle:", disabled=not eligible,
+            width="stretch", key="pick_meal",
+        )
+    if mode and eligible:
+        render_wheel_entries(eligible)
     if len(eligible) == 1:
         st.caption("目前只有 1 間可抽選，會推薦同一家。")
     if current is not None:
@@ -420,7 +431,7 @@ def render_catalog(state: PickerSession, filters: Filters, access: PageReviews) 
         else:
             st.write("目前沒有符合條件的餐廳。")
     if state.history:
-        with st.expander("最近推薦"):
+        with st.container(key="recent_recommendations"), st.expander("最近推薦"):
             render_rail("最近推薦", "保留最近 3 間不同的推薦", state.history, "recent")
 
 

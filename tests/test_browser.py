@@ -230,19 +230,73 @@ def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page
     expected = [restaurant.name for restaurant in load_default_catalog().restaurants if not restaurant.is_closed]
     assert len(pool) == 119
     assert pool == expected
-    expect(page.locator(".wheel-spoke")).to_have_count(119)
+    expect(page.locator(".wheel-label")).to_have_text(expected)
+    expect(page.locator(".wheel-spoke").first).to_have_css("clip-path", re.compile(r"^polygon\("))
     expect(page.get_by_role("button", name="下載完整名單", exact=True)).to_be_visible()
-    page.get_by_role("button", name="幫我決定這一餐", exact=True).click()
+    wheel = page.locator(".restaurant-wheel")
+    button = page.get_by_role("button", name="幫我決定這一餐", exact=True)
+    button_box, wheel_box = button.bounding_box(), wheel.bounding_box()
+    assert button_box and wheel_box
+    for position, size in (("x", "width"), ("y", "height")):
+        assert button_box[position] + button_box[size] / 2 == pytest.approx(
+            wheel_box[position] + wheel_box[size] / 2, abs=1
+        )
+    button.click()
     result = page.locator(f"{RESULT} h2")
-    expect(result).not_to_have_text(re.compile(r"^示範・"))
-    expect(page.locator(".wheel-spinning")).to_have_css("animation-name", "restaurant-spin")
+    rotor = wheel.locator(".wheel-rotor")
+    face = wheel.locator(".wheel-face")
+    result.wait_for(state="attached")
+    expect(result).to_be_hidden()
+    expect(page.locator(".st-key-pick_meal button")).to_be_hidden()
+    expect(face).to_have_css("transform", "none")
+    expect(page.locator(".st-key-recent_recommendations")).to_be_hidden()
+    early, late = rotor.evaluate(
+        """async element => {
+            const spin = element.getAnimations()[0];
+            spin.pause();
+            await spin.ready;
+            const time = spin.currentTime;
+            const duration = spin.effect.getTiming().duration;
+            const progress = fraction => {
+                spin.currentTime = duration * fraction;
+                return spin.effect.getComputedTiming().progress;
+            };
+            const early = progress(0.25) - progress(0.15);
+            const late = progress(0.95) - progress(0.85);
+            spin.currentTime = time;
+            return [early, late];
+        }"""
+    )
+    assert early > late > 0
+    page.get_by_role("button", name="下一頁", exact=True).click()
+    _wait_idle(page)
+    expect(result).to_be_hidden()
+    rotor.evaluate("element => element.getAnimations()[0].play()")
+    expect(wheel).to_have_attribute("data-wheel-stopped", "")
+    expect(page.get_by_role("button", name="再推薦一家", exact=True)).to_be_visible()
     expect(result).to_be_visible()
     previous = result.inner_text()
-    angle = float(page.locator(".wheel-rotor").evaluate(
-        "element => parseFloat(element.style.getPropertyValue('--wheel-angle'))"
-    ))
+    expect(wheel.locator(".wheel-winner .wheel-label")).to_have_text(previous)
+    expect(rotor).to_have_css("background-image", re.compile(r"rgb\(243, 207, 131\)"))
+    expect(face).to_have_css("transform", "matrix(3.6, 0, 0, 3.6, 0, 0)")
+    assert face.evaluate(
+        """element => {
+            const wheel = element.closest('.restaurant-wheel').getBoundingClientRect();
+            const face = element.getBoundingClientRect();
+            return Math.abs(face.top - wheel.top) < 1 &&
+                Math.abs((face.left + face.width / 2) - (wheel.left + wheel.width / 2)) < 1;
+        }"""
+    )
+    angle = rotor.evaluate(
+        """element => {
+            const rotation = new DOMMatrix(getComputedStyle(element).transform);
+            return Math.atan2(rotation.b, rotation.a) * 180 / Math.PI;
+        }"""
+    )
     assert previous in pool
-    assert angle == pytest.approx(1440 - pool.index(previous) * 360 / len(pool), abs=1e-5)
+    assert (angle + 360) % 360 == pytest.approx(
+        (-pool.index(previous) * 360 / len(pool)) % 360, abs=1e-4
+    )
     for _ in range(3):
         page.get_by_role("button", name="再推薦一家", exact=True).click()
         expect(result).not_to_have_text(previous)
@@ -255,7 +309,7 @@ def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page
     page.get_by_role("button", name="再推薦一家", exact=True).click()
     _wait_idle(page)
     expect(result).not_to_have_text(previous)
-    expect(page.locator(".wheel-spinning")).to_have_count(0)
+    expect(result).to_be_visible()
     page.locator("summary").filter(has_text="最近推薦").click()
     expect(page.get_by_role("heading", name="最近推薦", exact=True)).to_be_visible()
 
