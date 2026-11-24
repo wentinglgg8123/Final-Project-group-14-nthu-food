@@ -53,12 +53,12 @@ class Filters:
     fast_serve: bool = False
     slow_eat: bool = False
     include_closed: bool = False
-    open_now_only: bool = False
     locations: tuple[str, ...] = ()
     categories: tuple[str, ...] = ()
     price_levels: tuple[float, ...] = ()
     excluded_categories: tuple[str, ...] = ()
     radius_meters: int | None = None
+    open_now_only: bool = False
 
 
 @dataclass(frozen=True)

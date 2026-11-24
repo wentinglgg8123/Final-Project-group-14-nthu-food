@@ -147,7 +147,7 @@ def _write_workbook(headers: Sequence[str], rows: Sequence[Sequence[object]]) ->
     sheet["K1"].comment = Comment("店家備註會原樣保留；包含「關門了」等歇業提醒的店家不會被推薦。", "清大食刻表")
     for index, header in enumerate(headers, 1):
         if header in SCHEDULE_HEADERS:
-            sheet.cell(1, index).comment = Comment("保留提供的營業時間文字，不會依此自動判斷目前是否營業。", "清大食刻表")
+            sheet.cell(1, index).comment = Comment("篩選目前營業店家時會依台北時間判斷此欄的時段。", "清大食刻表")
     output = BytesIO()
     try:
         workbook.save(output)

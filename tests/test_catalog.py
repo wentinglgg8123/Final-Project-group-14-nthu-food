@@ -129,6 +129,38 @@ def test_is_open_now():
     assert not is_open_now("11:00~14:00,17:00~21:00", datetime(2026, 11, 24, 15, 0))
 
 
+def test_opening_hours_parse_weekday_groups_and_multiple_periods():
+    weekday_hours = "週一至週五11:00~13:30,17:00~20:00；週六11:00~13:30"
+    assert is_open_now(weekday_hours, datetime(2026, 11, 27, 17))
+    assert not is_open_now(weekday_hours, datetime(2026, 11, 27, 20))
+    assert is_open_now(weekday_hours, datetime(2026, 11, 28, 12))
+    assert not is_open_now(weekday_hours, datetime(2026, 11, 29, 12))
+    assert is_open_now("平日10:00~16:00,假日08:00~14:00", datetime(2026, 11, 29, 8))
+
+
+def test_special_opening_hours_override_regular_hours_on_listed_days():
+    regular = "7:30~19:30"
+    assert not is_open_now(regular, datetime(2026, 11, 28, 8), special_opening_hours="假日8:30~14:30")
+    assert is_open_now(regular, datetime(2026, 11, 29, 12), special_opening_hours="假日8:30~14:30")
+    assert not is_open_now(regular, datetime(2026, 11, 29, 12), special_opening_hours="週六、日公休")
+    assert is_open_now(regular, datetime(2026, 11, 30, 12), special_opening_hours="週六、日公休")
+    assert is_open_now(regular, datetime(2026, 11, 28, 8), special_opening_hours="不定時公休，依店家公告")
+
+
+def test_overnight_opening_hours_follow_the_day_the_shift_started():
+    hours = "週五18:00~02:30"
+    assert is_open_now(hours, datetime(2026, 11, 28, 2, 29))
+    assert not is_open_now(hours, datetime(2026, 11, 28, 2, 30))
+    assert not is_open_now(hours, datetime(2026, 11, 27, 2, 29))
+    assert not is_open_now(hours, datetime(2026, 11, 28, 2), special_opening_hours="週五公休")
+
+
+def test_open_now_filter_excludes_permanently_closed_restaurants_with_old_hours():
+    restaurant = replace(demo_restaurants()[0], is_closed=True, opening_hours="24小時")
+    assert filter_restaurants([restaurant], Filters(include_closed=True)) == [restaurant]
+    assert filter_restaurants([restaurant], Filters(include_closed=True, open_now_only=True)) == []
+
+
 def test_filter_defends_two_kilometre_rule_for_directly_created_records():
     restaurant = demo_restaurants()[4]
     assert filter_restaurants([replace(restaurant, distance=2)], Filters())

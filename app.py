@@ -302,7 +302,7 @@ def render_filter_group(label: str, options: list, key: str, format_func=str) ->
                  key=key, width="stretch", wrap=True, label_visibility="collapsed")
 
 
-def render_filters(state: PickerSession) -> Filters:
+def render_filters(state: PickerSession) -> tuple[Filters, list[Restaurant]]:
     st.html('<div id="discover"></div>')
     with st.container(horizontal=True, vertical_alignment="center"):
         st.subheader("篩選條件", anchor=False, width="stretch")
@@ -332,7 +332,11 @@ def render_filters(state: PickerSession) -> Filters:
         render_filter_group("排除料理種類", cuisine_options, "excluded_category_choices")
         st.caption("選取後，含有這些料理標籤的餐廳都會被排除。")
         st.checkbox("包含已註記歇業店家", key="include_closed", help="僅供瀏覽與查詢；歇業店家不參與隨機推薦。")
-        st.checkbox("只顯示目前營業的餐廳", key="open_now_only", help="依照餐廳提供的營業時間判斷；沒有營業時間資料的店家不會顯示。")
+        st.checkbox(
+            "只顯示目前營業的餐廳",
+            key="open_now_only",
+            help="以台北時間比對名單上的營業時段與固定公休，勾選後會自動更新。「假日」按週六、週日計算，臨時調整以店家公告為準。",
+        )
         if any(r.price is not None for r in state.restaurants):
             st.number_input("最高均消（元）", min_value=0.0, value=None, key="max_price_choice", help="僅適用舊版中文名單中提供均消的資料。")
     filters = read_filters()
@@ -342,7 +346,14 @@ def render_filters(state: PickerSession) -> Filters:
     st.caption(f"{len(candidates)} 間符合條件 · {available} 間可抽選")
     if state.user_location is not None and filters.radius_meters is not None:
         render_radius_preview(state.user_location, filters.radius_meters, candidates)
-    return filters
+    return filters, candidates
+
+
+@st.fragment(run_every=15)
+def refresh_open_restaurants(filters: Filters, displayed_ids: tuple[str, ...]) -> None:
+    if tuple(r.id for r in picker().candidates(filters)) != displayed_ids:
+        st.session_state.pop("wheel_animation", None)
+        st.rerun()
 
 
 def render_recommendation_result(
@@ -384,11 +395,13 @@ def shuffled_restaurants(restaurants: list[Restaurant], key: str) -> list[Restau
     return [restaurants_by_id[restaurant_id] for restaurant_id in order]
 
 
-def render_recommendation(state: PickerSession, filters: Filters, access: PageReviews) -> None:
+def render_recommendation(
+    state: PickerSession, filters: Filters, candidates: list[Restaurant], access: PageReviews,
+) -> None:
     favorite_ids = favorite_draw_ids()
-    draw_state = recommendation_picker(state, favorite_ids)
-    eligible = [restaurant for restaurant in draw_state.candidates(filters) if not restaurant.is_closed]
-    current = draw_state.current(filters)
+    eligible = [r for r in candidates if not r.is_closed and (favorite_ids is None or r.id in favorite_ids)]
+    selected_id = state.selected.id if state.selected else None
+    current = next((r for r in eligible if r.id == selected_id), None)
     with st.container(horizontal=True, vertical_alignment="center"):
         st.subheader("隨機推薦", anchor=False, width="stretch")
         mode = st.toggle("輪盤模式", value=True, key="wheel_mode", width="content")
@@ -432,8 +445,7 @@ def render_rail(title: str, subtitle: str, restaurants: list[Restaurant], key: s
     )
 
 
-def render_catalog(state: PickerSession, filters: Filters, access: PageReviews) -> None:
-    candidates = state.candidates(filters)
+def render_catalog(state: PickerSession, candidates: list[Restaurant], access: PageReviews) -> None:
     if st.session_state.get("distance_order") == "距離由近到遠":
         candidates = nearest_first(candidates, state.user_location)
         card_order = candidates
@@ -502,11 +514,13 @@ def main() -> None:
     render_favorites()
     render_location(state)
     with st.container(border=True, key="filters_panel"):
-        filters = render_filters(state)
+        filters, candidates = render_filters(state)
     with st.container(border=True, key="pick_panel"):
-        render_recommendation(state, filters, access)
-    render_catalog(state, filters, access)
+        render_recommendation(state, filters, candidates, access)
+    render_catalog(state, candidates, access)
     render_footer(state)
+    if filters.open_now_only:
+        refresh_open_restaurants(filters, tuple(r.id for r in candidates))
 
 
 if __name__ == "__main__":

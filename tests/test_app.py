@@ -1,5 +1,6 @@
 """Exercise the public default catalog, rendered filters, and session callbacks."""
 
+from datetime import UTC, datetime
 import json
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -7,6 +8,7 @@ from urllib.parse import parse_qs, urlparse
 import pytest
 from streamlit.testing.v1 import AppTest
 
+from food_picker import catalog
 from food_picker.catalog import parse_rows
 from food_picker.excel import EXCEL_HEADERS, LEGACY_HEADERS
 
@@ -69,6 +71,27 @@ def test_location_genre_price_and_occasion_filters_combine_on_actual_data(app):
     selected = app.session_state["picker"].selected
     assert selected.name == "麥當勞"
     assert selected.price is None and selected.price_level == 2
+
+
+def test_open_now_filter_uses_taipei_schedule_for_list_and_draw(app, monkeypatch):
+    class FrozenClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            utc = datetime(2026, 11, 24, 9, 17, tzinfo=UTC)
+            return utc.astimezone(tz) if tz is not None else utc.replace(tzinfo=None)
+
+    monkeypatch.setattr(catalog, "datetime", FrozenClock)
+    app.checkbox(key="open_now_only").check().run()
+    assert not app.exception
+    open_names = names(app)
+    assert len(open_names) == 107
+    assert "楊家古早味美食" in open_names
+    assert "懷香臭臭鍋" not in open_names
+    assert "方糰子" not in open_names
+    assert any(caption.value == "107 間符合條件 · 107 間可抽選" for caption in app.caption)
+    app.button(key="pick_meal").click().run()
+    assert not app.exception
+    assert app.session_state["picker"].selected.name in open_names
 
 
 def test_all_five_feature_flags_are_required_when_selected(app):
