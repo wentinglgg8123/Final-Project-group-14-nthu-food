@@ -372,6 +372,16 @@ def render_recommendation_result(
                            load_error=access.failed, context="recommendation")
 
 
+def shuffled_restaurants(restaurants: list[Restaurant], key: str) -> list[Restaurant]:
+    restaurants_by_id = {restaurant.id: restaurant for restaurant in restaurants}
+    order = st.session_state.get(key, [])
+    if set(order) != restaurants_by_id.keys():
+        order = list(restaurants_by_id)
+        SystemRandom().shuffle(order)
+        st.session_state[key] = order
+    return [restaurants_by_id[restaurant_id] for restaurant_id in order]
+
+
 def render_recommendation(state: PickerSession, filters: Filters, access: PageReviews) -> None:
     favorite_ids = favorite_draw_ids()
     draw_state = recommendation_picker(state, favorite_ids)
@@ -381,13 +391,7 @@ def render_recommendation(state: PickerSession, filters: Filters, access: PageRe
         st.subheader("隨機推薦", anchor=False, width="stretch")
         mode = st.toggle("輪盤模式", value=True, key="wheel_mode", width="content")
     if mode and eligible:
-        restaurants_by_id = {restaurant.id: restaurant for restaurant in eligible}
-        order = st.session_state.get("wheel_order", [])
-        if set(order) != restaurants_by_id.keys():
-            order = list(restaurants_by_id)
-            SystemRandom().shuffle(order)
-            st.session_state["wheel_order"] = order
-        eligible = [restaurants_by_id[restaurant_id] for restaurant_id in order]
+        eligible = shuffled_restaurants(eligible, "wheel_order")
     spin, previous_id = None, None
     if animation := st.session_state.get("wheel_animation"):
         draw, draw_filters, winner_id, start_id = animation
@@ -430,13 +434,20 @@ def render_catalog(state: PickerSession, filters: Filters, access: PageReviews) 
     candidates = state.candidates(filters)
     if st.session_state.get("distance_order") == "距離由近到遠":
         candidates = nearest_first(candidates, state.user_location)
-    signature = tuple(restaurant.id for restaurant in candidates)
+        card_order = candidates
+    else:
+        candidate_ids = {restaurant.id for restaurant in candidates}
+        card_order = [
+            restaurant for restaurant in shuffled_restaurants(state.restaurants, "catalog_order")
+            if restaurant.id in candidate_ids
+        ]
+    signature = tuple(restaurant.id for restaurant in card_order)
     if st.session_state.get("catalog_signature") != signature:
         st.session_state["catalog_page"] = 0
         st.session_state["catalog_signature"] = signature
     page_count = max(1, (len(candidates) + CATALOG_PAGE_SIZE - 1) // CATALOG_PAGE_SIZE)
     page = min(st.session_state.get("catalog_page", 0), page_count - 1)
-    visible = candidates[page * CATALOG_PAGE_SIZE:(page + 1) * CATALOG_PAGE_SIZE]
+    visible = card_order[page * CATALOG_PAGE_SIZE:(page + 1) * CATALOG_PAGE_SIZE]
     st.html('<div id="catalog"></div>')
     st.subheader("餐廳名單", anchor=False)
     st.caption(f"{len(candidates)} 間符合條件 · 每頁 {CATALOG_PAGE_SIZE} 間，可直接在餐廳下方留言")

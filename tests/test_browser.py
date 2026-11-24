@@ -281,6 +281,19 @@ def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page
     expect(wheel.locator(".wheel-winner .wheel-label")).to_have_text(previous)
     expect(rotor).to_have_css("background-image", re.compile(r"rgb\(243, 207, 131\)"))
     expect(face).to_have_css("transform", "matrix(3.6, 0, 0, 3.6, 0, 0)")
+    expect(wheel.locator(".wheel-label:visible")).to_have_count(0)
+    focus_name = wheel.locator(".wheel-focus-name")
+    expect(focus_name).to_be_visible()
+    expect(focus_name).to_have_text(previous)
+    assert focus_name.evaluate(
+        """name => {
+            const box = name.getBoundingClientRect();
+            const wheel = name.closest('.restaurant-wheel').getBoundingClientRect();
+            return box.left >= wheel.left && box.right <= wheel.right &&
+                box.top >= wheel.top && box.bottom <= wheel.bottom &&
+                name.scrollWidth === name.clientWidth;
+        }"""
+    )
     assert face.evaluate(
         """element => {
             const wheel = element.closest('.restaurant-wheel').getBoundingClientRect();
@@ -305,6 +318,7 @@ def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page
         expect(result).to_be_visible()
         expect(wheel.locator(".wheel-label")).to_have_text(pool)
         previous = result.inner_text()
+        expect(focus_name).to_have_text(previous)
         assert previous in pool
     page.get_by_text("輪盤模式", exact=True).click()
     expect(page.locator(".restaurant-wheel")).to_have_count(0)
@@ -512,11 +526,11 @@ def test_each_filter_group_has_select_all_and_cancel_buttons(page):
     menu.click()
     _select_pills(page, "價格等級", ["🪙"])
     _expect_count(page, 77)
-    expect(page.locator(".st-key-catalog_grid").get_by_role("heading", name="7-ELEVEN", exact=True)).to_be_visible()
+    expect(page.locator(".wheel-entries li").filter(has_text=re.compile(r"^7-ELEVEN$"))).to_have_count(1)
     _toggle_pill_off(page, "價格等級", "🪙")
     _select_pills(page, "價格等級", ["🪙🪙"])
     _expect_count(page, 90)
-    expect(page.locator(".st-key-catalog_grid").get_by_role("heading", name="7-ELEVEN", exact=True)).to_be_visible()
+    expect(page.locator(".wheel-entries li").filter(has_text=re.compile(r"^7-ELEVEN$"))).to_have_count(1)
     _select_pills(page, "價格等級", ["🪙"])
     _expect_count(page, 117)
     _toggle_pill_off(page, "價格等級", "🪙")
@@ -530,8 +544,12 @@ def test_each_filter_group_has_select_all_and_cancel_buttons(page):
 def test_all_catalog_pages_have_per_restaurant_comment_forms(page):
     previous = page.get_by_role("button", name="上一頁", exact=True)
     next_page = page.get_by_role("button", name="下一頁", exact=True)
+    headings = page.locator(".st-key-catalog_grid .food-card h3")
     expect(previous).to_be_disabled()
-    expect(page.get_by_role("heading", name="包子商行", exact=True)).to_be_visible()
+    expect(headings).to_have_count(6)
+    first_page = headings.all_text_contents()
+    original_order = [restaurant.name for restaurant in load_default_catalog().restaurants]
+    assert first_page != original_order[:6]
     expect(page.get_by_test_id("stForm")).to_have_count(6)
     expect(page.get_by_role("textbox", name="評論內容", exact=True)).to_have_count(6)
     publish = page.get_by_role("button", name="發布評論", exact=True)
@@ -540,14 +558,19 @@ def test_all_catalog_pages_have_per_restaurant_comment_forms(page):
         expect(button).to_be_disabled()
 
     next_page.click()
-    expect(page.get_by_role("heading", name="蘇記牛肉麵", exact=True)).to_be_visible()
-    expect(page.get_by_role("heading", name="包子商行", exact=True)).to_have_count(0)
+    expect(page.get_by_text("第 2 / 20 頁", exact=True)).to_be_visible()
+    expect(headings).to_have_count(6)
+    assert set(first_page).isdisjoint(headings.all_text_contents())
     expect(page.get_by_test_id("stForm")).to_have_count(6)
     expect(page.get_by_role("textbox", name="評論內容", exact=True)).to_have_count(6)
     expect(previous).to_be_enabled()
     previous.click()
-    expect(page.get_by_role("heading", name="包子商行", exact=True)).to_be_visible()
+    expect(headings).to_have_text(first_page)
     expect(previous).to_be_disabled()
+    _select_pills(page, "地點", ["小吃部"])
+    _expect_count(page, 9)
+    _toggle_pill_off(page, "地點", "小吃部")
+    expect(headings).to_have_text(first_page)
 
 
 def test_top_search_finds_names_outside_filters_and_closed_stores_before_the_catalog(page):
@@ -750,6 +773,8 @@ def test_rapid_typing_and_clear_cancel_pending_live_search_updates(page):
 
 def test_favorites_sync_between_cards_and_survive_reload(page):
     name = "包子商行"
+    _query(page, name)
+    _expect_count(page, 1)
     list_header = page.get_by_text("我的最愛", exact=True)
     list_header.click()
     empty = page.get_by_text("還沒有收藏。點餐廳的星號就能加入。", exact=True)
@@ -764,7 +789,6 @@ def test_favorites_sync_between_cards_and_survive_reload(page):
     favorite_list = page.locator(".favorite-list")
     expect(favorite_list.get_by_role("link", name=name, exact=True)).to_be_visible()
 
-    _query(page, name)
     search_button = page.locator(".st-key-search_results").get_by_role(
         "button", name=f"收藏 {name}", exact=True
     )
@@ -776,6 +800,8 @@ def test_favorites_sync_between_cards_and_survive_reload(page):
     expect(recommendation_button).to_have_attribute("aria-pressed", "true")
 
     page.reload()
+    _query(page, name)
+    _expect_count(page, 1)
     expect(catalog_button).to_have_attribute("aria-pressed", "true")
     list_header.click()
     expect(favorite_list.get_by_role("link", name=name, exact=True)).to_be_visible()
@@ -784,6 +810,8 @@ def test_favorites_sync_between_cards_and_survive_reload(page):
     expect(catalog_button).to_have_attribute("aria-pressed", "false")
 
     page.reload()
+    _query(page, name)
+    _expect_count(page, 1)
     expect(catalog_button).to_have_attribute("aria-pressed", "false")
 
 
@@ -797,12 +825,13 @@ def test_favorites_switch_limits_draws_and_updates_when_favorites_change(page):
     expect(page.get_by_text("目前沒有符合條件的收藏餐廳。", exact=False)).to_be_visible()
 
     catalog = page.locator(".st-key-catalog_grid")
-    favorite_buttons = [
-        catalog.get_by_role("button", name=f"收藏 {name}", exact=True)
-        for name in ("包子商行", "麥當勞")
-    ]
-    for button in favorite_buttons:
-        button.click()
+    names = ("包子商行", "麥當勞")
+    for name in names:
+        _query(page, name)
+        _expect_count(page, 1, available=0)
+        catalog.get_by_role("button", name=f"收藏 {name}", exact=True).click()
+        _expect_count(page, 1, available=1)
+    _query(page, "")
     _expect_count(page, 119, available=2)
     pool = page.locator(".wheel-entries li")
     expect(pool).to_have_count(2)
@@ -828,8 +857,9 @@ def test_favorites_switch_limits_draws_and_updates_when_favorites_change(page):
     _wait_idle(page)
     expect(result).to_have_text("麥當勞" if first == "包子商行" else "包子商行")
 
-    for button in favorite_buttons:
-        button.click()
+    page.get_by_text("我的最愛", exact=True).click()
+    for name in names:
+        page.get_by_role("button", name=f"取消收藏 {name}", exact=True).click()
     _expect_count(page, 119, available=0)
     expect(pick).to_be_disabled()
     expect(result).to_have_count(0)

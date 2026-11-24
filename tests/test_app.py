@@ -275,7 +275,7 @@ def test_catalog_pagination_exposes_six_comment_forms_per_page(app):
     assert app.session_state["catalog_page"] == 0
     assert app.button(key="catalog_previous").disabled
     first_cards = [html.value for html in app.get("html") if '<article class="food-card' in html.value]
-    assert len(first_cards) == 6 and "包子商行" in first_cards[0]
+    assert len(first_cards) == 6
     assert len([field for field in app.text_area if field.key.startswith("review_body_")]) == 6
     submit_buttons = [button for button in app.button if (button.key or "").startswith("review_submit_")]
     assert len(submit_buttons) == 6 and all(button.disabled for button in submit_buttons)
@@ -284,12 +284,12 @@ def test_catalog_pagination_exposes_six_comment_forms_per_page(app):
     assert not app.exception
     assert app.session_state["catalog_page"] == 1
     second_cards = [html.value for html in app.get("html") if '<article class="food-card' in html.value]
-    assert len(second_cards) == 6 and "蘇記牛肉麵" in second_cards[0]
-    assert "包子商行" not in " ".join(second_cards)
+    assert len(second_cards) == 6 and set(first_cards).isdisjoint(second_cards)
     assert len([field for field in app.text_area if field.key.startswith("review_body_")]) == 6
     assert not app.button(key="catalog_previous").disabled
     app.button(key="catalog_previous").click().run()
     assert not app.exception and app.session_state["catalog_page"] == 0
+    assert [html.value for html in app.get("html") if '<article class="food-card' in html.value] == first_cards
 
 
 def test_invalid_review_configuration_keeps_catalog_and_filters_usable(app):

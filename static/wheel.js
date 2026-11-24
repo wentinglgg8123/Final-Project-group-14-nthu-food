@@ -12,6 +12,7 @@ export default function ({ parentElement, data }) {
   wheel.dataset.draw = signature;
   wheel.removeAttribute("data-wheel-stopped");
   wheel.removeAttribute("data-wheel-spinning");
+  wheel.querySelector(".wheel-focus-name")?.remove();
   wheel.classList.toggle("wheel-sparse", sparse);
   status.textContent = "";
   for (const animation of rotor.getAnimations()) animation.cancel();
@@ -65,6 +66,12 @@ export default function ({ parentElement, data }) {
   const showWinner = () => {
     stops[winner] = `#f3cf83 ${winner * step}deg ${(winner + 1) * step}deg`;
     rotor.style.background = gradient();
+    if (!sparse) {
+      const name = document.createElement("p");
+      name.className = "wheel-focus-name";
+      name.textContent = names[winner];
+      wheel.append(name);
+    }
     wheel.dataset.wheelStopped = "";
     wheel.removeAttribute("data-wheel-spinning");
     status.textContent = `抽到 ${names[winner]}`;

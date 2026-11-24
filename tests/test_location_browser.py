@@ -94,6 +94,10 @@ def test_granted_location_google_points_nearest_sort_and_clear(location_site, vi
         page.add_init_script('''window.geoRequests=0;const original=navigator.geolocation.getCurrentPosition.bind(navigator.geolocation);navigator.geolocation.getCurrentPosition=(...args)=>{window.geoRequests++;return original(...args);};''')
         try:
             page.goto(location_site)
+            cards=page.locator('.st-key-catalog_grid')
+            headings=cards.locator('.food-card h3')
+            expect(headings).to_have_count(6)
+            initial_order=headings.all_text_contents()
             page.get_by_text('⌖ 找離我近的餐廳',exact=True).click()
             locate=page.get_by_role('button',name='⌖ 取得我的位置',exact=True)
             expect(locate).to_be_visible(timeout=30000)
@@ -114,14 +118,13 @@ def test_granted_location_google_points_nearest_sort_and_clear(location_site, vi
                 dialog.get_by_role('button',name='套用座標',exact=True).click()
                 expect(dialog).not_to_be_visible(timeout=15000)
                 expect(page.get_by_test_id('stApp')).to_have_attribute('data-test-script-state', 'notRunning')
-            cards=page.locator('.st-key-catalog_grid')
-            expect(cards.locator('.food-card h3').first).to_have_text('麥當勞')
+            expect(headings.first).to_have_text('麥當勞')
             expect(cards).to_contain_text('直線距離約 11 公尺')
             expect(cards).to_contain_text('直線距離約 1.11 公里')
             assert '24.8' not in page.url and '120.97' not in page.url
             page.get_by_role('button',name='清除位置',exact=True).click()
             expect(page.get_by_role('button',name='⌖ 取得我的位置',exact=True)).to_be_visible()
-            expect(cards.locator('.food-card h3').first).to_have_text('包子商行')
+            expect(headings).to_have_text(initial_order)
             expect(cards.get_by_text('直線距離約 11 公尺',exact=True)).to_have_count(0)
             assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
             assert not errors,errors

@@ -124,7 +124,10 @@ def render_location(state):
         if state.user_location:
             accuracy = state.user_location.accuracy
             st.success('已取得你的位置；' + (f'裝置回報精度約 ±{round(accuracy)} 公尺。' if accuracy is not None else '裝置未提供精度。'))
-            st.selectbox('餐廳排序', ('原始順序', '距離由近到遠'), key='distance_order')
+            st.selectbox(
+                '餐廳名單排序', ('原始順序', '距離由近到遠'), key='distance_order',
+                format_func=lambda option: '隨機順序' if option == '原始順序' else option,
+            )
             st.caption('距離是兩點間的直線距離，不是道路長度、步行時間或即時路線。沒有座標的店家排在最後。')
         known = sum(valid_coordinates(r.latitude, r.longitude) for r in state.restaurants)
         st.caption(f'目前 {known}/{len(state.restaurants)} 間餐廳可計算距離。')
