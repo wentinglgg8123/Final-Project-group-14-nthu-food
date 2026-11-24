@@ -1,23 +1,47 @@
 const colors = ["#eaf3e6", "#f8e6c7", "#f2d9ce", "#d9e9f4", "#daeade"];
 
-function fitZoomedLabels(viewport, face, zoom) {
-  const frame = viewport.getBoundingClientRect();
-  const faceWidth = face.getBoundingClientRect().width;
-  if (!frame.width || !faceWidth) return;
+function radialBounds(direction, low, high) {
+  if (Math.abs(direction) < 1e-9) {
+    return low <= 0 && high >= 0 ? [-Infinity, Infinity] : [Infinity, -Infinity];
+  }
+  const start = low / direction;
+  const end = high / direction;
+  return direction > 0 ? [start, end] : [end, start];
+}
 
-  // Project each label to the final zoom, even when the zoom transition is still running.
-  const scale = zoom * frame.width / faceWidth;
-  const center = frame.left + frame.width / 2;
-  const x = value => center + (value - center) * scale;
-  const y = value => frame.top + (value - frame.top) * scale;
-  const inset = 2;
-  const cropped = Array.from(face.querySelectorAll(".wheel-label"), label => {
-    const box = label.getBoundingClientRect();
-    const outside = x(box.left) < frame.left + inset || x(box.right) > frame.right - inset ||
-      y(box.top) < frame.top + inset || y(box.bottom) > frame.bottom - inset;
-    return [label, outside];
+function fitZoomedLabels(viewport, face, { zoom, size, winner, widthFraction }) {
+  const diameter = viewport.getBoundingClientRect().width;
+  if (!diameter) return;
+
+  // The zoom is anchored at the top of the wheel. Express its visible window in wheel coordinates.
+  const halfWidth = diameter / (2 * zoom);
+  const top = -diameter / 2;
+  const bottom = top + diameter / zoom;
+  const rim = 0.46 * diameter;
+  const sectorSlope = Math.tan(0.84 * Math.PI / size);
+  const inset = 2 / zoom;
+  const fitted = Array.from(face.querySelectorAll(".wheel-label"), label => {
+    const style = getComputedStyle(label);
+    const halfHeight = parseFloat(style.lineHeight) / 2;
+    const minimumWidth = 2 * parseFloat(style.fontSize);
+    const angle = (Number(label.dataset.wheelIndex) - winner) * 2 * Math.PI / size;
+    const dx = Math.sin(angle);
+    const dy = -Math.cos(angle);
+    const padX = inset + Math.abs(dy) * halfHeight;
+    const padY = inset + Math.abs(dx) * halfHeight;
+    const [left, right] = radialBounds(dx, -halfWidth + padX, halfWidth - padX);
+    const [upper, lower] = radialBounds(dy, top + padY, bottom - padY);
+    const inner = size <= 120 ? halfHeight / sectorSlope : 0;
+    const start = Math.max(left, upper, inner, rim - widthFraction * diameter);
+    const end = Math.min(right, lower, rim);
+    const width = end - start;
+    return { label, end, width, hasRoom: width >= minimumWidth };
   });
-  for (const [label, outside] of cropped) label.toggleAttribute("data-wheel-label-outside", outside);
+  for (const { label, end, width, hasRoom } of fitted) {
+    label.style.setProperty("--wheel-zoom-label-end", `${hasRoom ? end : rim}px`);
+    label.style.setProperty("--wheel-zoom-label-width", `${hasRoom ? width : 0}px`);
+    label.toggleAttribute("data-wheel-label-outside", !hasRoom);
+  }
 }
 
 export default function ({ parentElement, data }) {
@@ -30,7 +54,8 @@ export default function ({ parentElement, data }) {
   const size = names.length;
   const sparse = size <= 8;
   const zoom = sparse ? 1.12 : size <= 12 ? 2.25 : size <= 35 ? 3.1 : 3.6;
-  const fitZoom = () => fitZoomedLabels(viewport, face, zoom);
+  const widthFraction = size <= 4 ? .30 : sparse ? .22 : size <= 12 ? .36 : size <= 35 ? .25 : .18;
+  const fitZoom = () => fitZoomedLabels(viewport, face, { zoom, size, winner, widthFraction });
   let disconnect;
   if (!sparse && spin !== null) {
     const observer = new ResizeObserver(() => {
@@ -54,7 +79,7 @@ export default function ({ parentElement, data }) {
   const stops = [];
   const labels = document.createDocumentFragment();
   // Allocate text near the wider rim, leaving space at each sector boundary.
-  let labelWidth = size <= 4 ? "30%" : sparse ? "22%" : size <= 12 ? "36%" : size <= 35 ? "25%" : "18%";
+  let labelWidth = `${100 * widthFraction}%`;
   rotor.style.setProperty("--wheel-label-size", `min(.7rem, ${155 / Math.min(size, 120)}cqw)`);
   if (size > 2 && size <= 120) {
     const sectorSlope = Math.tan(0.92 * Math.PI / size);
@@ -81,6 +106,7 @@ export default function ({ parentElement, data }) {
       spoke.style.setProperty("--spoke-angle", `${index * step}deg`);
       const label = document.createElement("span");
       label.className = "wheel-label";
+      label.dataset.wheelIndex = String(index);
       if (sparse) label.style.setProperty("--wheel-label-turn", `${winner * step - index * step}deg`);
       label.textContent = names[index];
       label.title = names[index];

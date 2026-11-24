@@ -286,6 +286,19 @@ def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page
     expect(wheel.locator(".wheel-focus-name")).to_have_count(0)
     visible_labels = wheel.locator(".wheel-label:visible")
     assert 1 < visible_labels.count() < len(pool)
+    winner_index = pool.index(previous)
+    for offset in (-1, 1):
+        neighbor = wheel.locator(f'.wheel-label[data-wheel-index="{(winner_index + offset) % len(pool)}"]')
+        expect(neighbor).to_be_visible()
+        expect(neighbor).to_have_css("font-weight", "650")
+    expect(winner_label).to_have_css("font-weight", "650")
+    assert visible_labels.evaluate_all(
+        """labels => labels.some(label => {
+            const end = parseFloat(label.style.getPropertyValue('--wheel-zoom-label-end'));
+            const frame = label.closest('.wheel-viewport').getBoundingClientRect();
+            return end < frame.width * 0.455;
+        })"""
+    )
     assert visible_labels.evaluate_all(
         """labels => labels.every(label => {
             const box = label.getBoundingClientRect();

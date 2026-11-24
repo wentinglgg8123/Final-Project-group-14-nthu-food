@@ -388,6 +388,10 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
   .restaurant-wheel[data-wheel-stopped] .wheel-label[data-wheel-label-outside] {
     visibility: hidden;
   }
+  .restaurant-wheel[data-wheel-stopped] .wheel-label {
+    width: var(--wheel-zoom-label-width, var(--wheel-label-width, 36%));
+    --wheel-label-end: var(--wheel-zoom-label-end, 46cqw);
+  }
 }
 .wheel-rotor {
   position: absolute;
@@ -434,7 +438,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transform: translateY(-50%) rotate(-90deg) translateX(calc(46cqw - 100%));
+  transform: translateY(-50%) rotate(-90deg) translateX(calc(var(--wheel-label-end, 46cqw) - 100%));
   transform-origin: left center;
   pointer-events: auto;
 }
@@ -453,7 +457,6 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
 }
 .restaurant-wheel[data-wheel-stopped] .wheel-winner .wheel-label {
   color: #154b39;
-  font-weight: 800;
 }
 .wheel-entries {
   max-width: 22rem;
