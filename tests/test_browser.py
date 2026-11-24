@@ -278,21 +278,21 @@ def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page
     expect(page.get_by_role("button", name="再推薦一家", exact=True)).to_be_visible()
     expect(result).to_be_visible()
     previous = result.inner_text()
-    expect(wheel.locator(".wheel-winner .wheel-label")).to_have_text(previous)
+    winner_label = wheel.locator(".wheel-winner .wheel-label")
+    expect(winner_label).to_have_text(previous)
+    expect(winner_label).to_be_visible()
     expect(rotor).to_have_css("background-image", re.compile(r"rgb\(243, 207, 131\)"))
     expect(face).to_have_css("transform", "matrix(3.6, 0, 0, 3.6, 0, 0)")
-    expect(wheel.locator(".wheel-label:visible")).to_have_count(0)
-    focus_name = wheel.locator(".wheel-focus-name")
-    expect(focus_name).to_be_visible()
-    expect(focus_name).to_have_text(previous)
-    assert focus_name.evaluate(
-        """name => {
-            const box = name.getBoundingClientRect();
-            const wheel = name.closest('.restaurant-wheel').getBoundingClientRect();
-            return box.left >= wheel.left && box.right <= wheel.right &&
-                box.top >= wheel.top && box.bottom <= wheel.bottom &&
-                name.scrollWidth === name.clientWidth;
-        }"""
+    expect(wheel.locator(".wheel-focus-name")).to_have_count(0)
+    visible_labels = wheel.locator(".wheel-label:visible")
+    assert 1 < visible_labels.count() < len(pool)
+    assert visible_labels.evaluate_all(
+        """labels => labels.every(label => {
+            const box = label.getBoundingClientRect();
+            const frame = label.closest('.wheel-viewport').getBoundingClientRect();
+            return box.left >= frame.left && box.right <= frame.right &&
+                box.top >= frame.top && box.bottom <= frame.bottom;
+        })"""
     )
     assert face.evaluate(
         """element => {
@@ -318,7 +318,7 @@ def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page
         expect(result).to_be_visible()
         expect(wheel.locator(".wheel-label")).to_have_text(pool)
         previous = result.inner_text()
-        expect(focus_name).to_have_text(previous)
+        expect(winner_label).to_have_text(previous)
         assert previous in pool
     page.get_by_text("輪盤模式", exact=True).click()
     expect(page.locator(".restaurant-wheel")).to_have_count(0)

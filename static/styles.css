@@ -380,36 +380,13 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
 }
 .wheel-viewport { overflow: hidden; }
 .wheel-face { transform-origin: top center; }
-.wheel-focus-name { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   .restaurant-wheel[data-wheel-stopped] .wheel-face {
     transform: scale(var(--wheel-zoom, 3.6));
     transition: transform .65s cubic-bezier(.22, .61, .36, 1) .12s;
   }
-  .restaurant-wheel[data-wheel-stopped]:not(.wheel-sparse) .wheel-label { visibility: hidden; }
-  .restaurant-wheel[data-wheel-stopped] .wheel-focus-name {
-    display: block;
-    position: absolute;
-    top: clamp(1.75rem, 14cqw, 3rem);
-    left: 50%;
-    box-sizing: border-box;
-    width: max-content;
-    max-width: calc(100% - 2rem);
-    max-height: calc(100% - 4rem);
-    overflow: auto;
-    margin: 0;
-    padding: .55rem .9rem;
-    border: 1px solid #d8b266;
-    border-radius: .65rem;
-    background: var(--surface);
-    box-shadow: 0 2px 8px #233f3429;
-    color: var(--ink);
-    font-size: clamp(.95rem, 5cqw, 1.2rem);
-    font-weight: 750;
-    line-height: 1.4;
-    overflow-wrap: anywhere;
-    text-align: center;
-    transform: translateX(-50%);
+  .restaurant-wheel[data-wheel-stopped] .wheel-label[data-wheel-label-outside] {
+    visibility: hidden;
   }
 }
 .wheel-rotor {
