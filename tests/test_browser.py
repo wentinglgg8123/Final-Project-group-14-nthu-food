@@ -232,6 +232,36 @@ def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page
     assert sorted(pool) == sorted(expected)
     assert pool != expected
     expect(page.locator(".wheel-label")).to_have_text(pool)
+    assert page.locator(".wheel-label").evaluate_all(
+        """async labels => {
+            await document.fonts.ready;
+            const context = document.createElement('canvas').getContext('2d');
+            const probe = document.createElement('span');
+            const text = document.createTextNode('');
+            const baseline = document.createElement('span');
+            baseline.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
+            probe.style.cssText = 'position:fixed;top:0;left:0;visibility:hidden;white-space:nowrap';
+            probe.append(text, baseline);
+            document.body.append(probe);
+            try {
+                return labels.filter(label => /[\\u3400-\\u9fff]/.test(label.textContent)).every(label => {
+                    const style = getComputedStyle(label);
+                    for (const property of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'paddingTop', 'paddingBottom']) {
+                        probe.style[property] = style[property];
+                    }
+                    text.textContent = label.textContent;
+                    const box = probe.getBoundingClientRect();
+                    const y = baseline.getBoundingClientRect().top;
+                    context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+                    const ink = context.measureText(text.textContent);
+                    return y - ink.actualBoundingBoxAscent >= box.top &&
+                        y + ink.actualBoundingBoxDescent <= box.bottom;
+                });
+            } finally {
+                probe.remove();
+            }
+        }"""
+    )
     expect(page.locator(".wheel-spoke").first).to_have_css("clip-path", re.compile(r"^polygon\("))
     expect(page.get_by_role("button", name="下載完整名單", exact=True)).to_be_visible()
     wheel = page.locator(".restaurant-wheel")
@@ -303,8 +333,16 @@ def test_default_catalog_is_shared_and_random_recommendations_do_not_repeat(page
         """labels => labels.every(label => {
             const box = label.getBoundingClientRect();
             const frame = label.closest('.wheel-viewport').getBoundingClientRect();
+            const scale = Number(label.style.getPropertyValue('--wheel-zoom-label-scale'));
+            const end = parseFloat(label.style.getPropertyValue('--wheel-zoom-label-end'));
+            const style = getComputedStyle(label);
+            const innerRadius = end - parseFloat(style.width) * scale;
+            const halfHeight = parseFloat(style.height) * scale / 2;
+            const sectorSlope = Math.tan(Math.PI / 119);
             return box.left >= frame.left && box.right <= frame.right &&
-                box.top >= frame.top && box.bottom <= frame.bottom;
+                box.top >= frame.top && box.bottom <= frame.bottom &&
+                halfHeight < innerRadius * sectorSlope &&
+                label.scrollWidth <= label.clientWidth && label.scrollHeight <= label.clientHeight;
         })"""
     )
     assert face.evaluate(

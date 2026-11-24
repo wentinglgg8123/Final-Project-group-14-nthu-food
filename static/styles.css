@@ -368,6 +368,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
   white-space: nowrap;
 }
 .restaurant-wheel {
+  --wheel-label-leading: 1.4;
+  --wheel-label-ink-inset: .25px;
   position: relative;
   container-type: inline-size;
   width: min(100%, 22rem);
@@ -380,6 +382,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
 }
 .wheel-viewport { overflow: hidden; }
 .wheel-face { transform-origin: top center; }
+.wheel-spoke[data-wheel-zoom-only] { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   .restaurant-wheel[data-wheel-stopped] .wheel-face {
     transform: scale(var(--wheel-zoom, 3.6));
@@ -388,9 +391,15 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
   .restaurant-wheel[data-wheel-stopped] .wheel-label[data-wheel-label-outside] {
     visibility: hidden;
   }
-  .restaurant-wheel[data-wheel-stopped] .wheel-label {
-    width: var(--wheel-zoom-label-width, var(--wheel-label-width, 36%));
-    --wheel-label-end: var(--wheel-zoom-label-end, 46cqw);
+  .restaurant-wheel[data-wheel-stopped] .wheel-spoke[data-wheel-zoom-only] { display: block; }
+  .restaurant-wheel[data-wheel-stopped]:not(.wheel-sparse) .wheel-label {
+    box-sizing: border-box;
+    width: max-content;
+    overflow: visible;
+    font-size: 20px;
+    padding: 1px 2px;
+    transform: translateY(-50%) rotate(-90deg) translateX(var(--wheel-zoom-label-end, 46cqw))
+      scale(var(--wheel-zoom-label-scale, 0)) translateX(-100%);
   }
 }
 .wheel-rotor {
@@ -426,29 +435,36 @@ a:focus-visible, button:focus-visible, input:focus-visible, [role='combobox']:fo
   transform: rotate(var(--spoke-angle));
 }
 .wheel-label {
+  /* Lay out CJK glyphs at a readable font size before scaling them onto narrow sectors. */
+  --wheel-label-render-scale: 4;
   position: absolute;
+  box-sizing: content-box;
   top: 50%;
   left: 50%;
-  width: var(--wheel-label-width, 36%);
+  width: calc(var(--wheel-label-width, 36%) * var(--wheel-label-render-scale));
   overflow: hidden;
   color: #243a2e;
-  font-size: var(--wheel-label-size, .7rem);
+  font-size: calc(var(--wheel-label-size, .7rem) * var(--wheel-label-render-scale));
   font-weight: 650;
-  line-height: 1;
+  line-height: var(--wheel-label-leading);
+  padding-block-start: calc(var(--wheel-label-ink-inset) * var(--wheel-label-render-scale));
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transform: translateY(-50%) rotate(-90deg) translateX(calc(var(--wheel-label-end, 46cqw) - 100%));
+  transform: translateY(-50%) rotate(-90deg) scale(calc(1 / var(--wheel-label-render-scale)))
+    translateX(calc(46cqw * var(--wheel-label-render-scale) - 100%));
   transform-origin: left center;
   pointer-events: auto;
 }
 .wheel-sparse .wheel-label {
+  --wheel-label-render-scale: 1;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   top: 22%;
   font-size: min(.85rem, 3.8cqw);
   line-height: 1.2;
+  padding-block-start: 0;
   text-align: center;
   white-space: normal;
   overflow-wrap: anywhere;
