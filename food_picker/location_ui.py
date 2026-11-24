@@ -14,7 +14,7 @@ _control = components.component(
     'browser_location',
     html='<div class="controls"><button data-locate type="button">⌖ 取得我的位置</button><button data-clear type="button" hidden>清除位置</button><span data-status role="status" aria-live="polite"></span></div>',
     css='\n.controls{display:flex;gap:10px;align-items:center;\nflex-wrap:wrap;font:14px sans-serif;color:#5e6d62}button{border:1px solid #b8cdbd;background:#eef2ed;color:#27624e;border-radius:7px;padding:10px 14px;cursor:pointer}button:focus-visible{outline:3px solid #27624e}button:disabled{opacity:.6;cursor:wait}[hidden]{display:none!important}',
-    js=(ASSETS / 'geolocation.js').read_text(),
+    js=(ASSETS / 'geolocation.js').read_text(encoding='utf-8'),
 )
 ERRORS = {
     'denied': '未取得定位權限。請在網址列的位置權限設定允許此網站，再按一次取得位置。',

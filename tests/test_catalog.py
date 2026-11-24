@@ -12,6 +12,7 @@ from food_picker.catalog import (
     demo_restaurants,
     filter_restaurants,
     genre_label,
+    is_open_now,
     location_label,
     parse_rows,
     restaurant_categories,
@@ -121,6 +122,11 @@ def test_filters_combine_and_unknown_price_is_not_within_budget():
     assert filter_restaurants(restaurants, Filters(query="清華大學")) == restaurants
     normalised = replace(restaurants[0], name="ＣＡＦÉ", category="ＪＡＰＡＮＥＳＥ")
     assert filter_restaurants([normalised], Filters(query="café", category="japanese")) == [normalised]
+
+
+def test_is_open_now():
+    assert is_open_now("11:00~14:00,17:00~21:00", datetime(2026, 11, 24, 12, 0))
+    assert not is_open_now("11:00~14:00,17:00~21:00", datetime(2026, 11, 24, 15, 0))
 
 
 def test_filter_defends_two_kilometre_rule_for_directly_created_records():

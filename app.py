@@ -34,7 +34,7 @@ MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 FILTER_DEFAULTS = {
     "location_choices": [], "category_choices": [], "excluded_category_choices": [], "price_choices": [],
     "occasion_choice": [], "pace_choice": [], "query_choice": "", "include_closed": False,
-    "max_price_choice": None, "radius_choice": "不限距離", "custom_radius": None,
+    "max_price_choice": None, "radius_choice": "不限距離", "custom_radius": None, "open_now_only": False,
 }
 CATALOG_PAGE_SIZE = 6
 SEARCH_PAGE_SIZE = 3
@@ -125,6 +125,7 @@ def read_filters() -> Filters:
         gathering="聚餐" in occasions, fast_serve="快速上菜" in paces,
         slow_eat="慢慢享用" in paces,
         include_closed=st.session_state.get("include_closed", False),
+        open_now_only=st.session_state.get("open_now_only", False),
         radius_meters=selected_radius() if picker().user_location is not None else None,
     )
 
@@ -331,6 +332,7 @@ def render_filters(state: PickerSession) -> Filters:
         render_filter_group("排除料理種類", cuisine_options, "excluded_category_choices")
         st.caption("選取後，含有這些料理標籤的餐廳都會被排除。")
         st.checkbox("包含已註記歇業店家", key="include_closed", help="僅供瀏覽與查詢；歇業店家不參與隨機推薦。")
+        st.checkbox("只顯示目前營業的餐廳", key="open_now_only", help="依照餐廳提供的營業時間判斷；沒有營業時間資料的店家不會顯示。")
         if any(r.price is not None for r in state.restaurants):
             st.number_input("最高均消（元）", min_value=0.0, value=None, key="max_price_choice", help="僅適用舊版中文名單中提供均消的資料。")
     filters = read_filters()

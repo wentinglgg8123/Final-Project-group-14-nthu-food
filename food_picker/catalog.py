@@ -7,6 +7,8 @@ import math
 import random
 import re
 import unicodedata
+from datetime import datetime
+import re
 
 from .models import Area, Filters, ParseResult, Restaurant, ValidationError
 
@@ -296,6 +298,62 @@ def _closed(note: str) -> bool:
     return text in {"閉店", "已閉店", "關門了", "已關門", "已歇業", "永久歇業"}
 
 
+def is_open_now(
+    opening_hours: str | None,
+    now: datetime | None = None,
+) -> bool:
+    """Check whether a restaurant is open at the current local time."""
+    if not opening_hours:
+        return False
+
+    hours = opening_hours.strip().replace("～", "~")
+    hours = hours.replace("－", "~").replace("—", "~")
+
+    if "24小時" in hours:
+        return True
+
+    current = now or datetime.now()
+    current_minutes = current.hour * 60 + current.minute
+
+    for period in hours.split(","):
+        match = re.fullmatch(
+            r"\s*(\d{1,2}):(\d{2})\s*~\s*(\d{1,2}):(\d{2})\s*",
+            period,
+        )
+
+        if not match:
+            continue
+
+        start_hour, start_minute, end_hour, end_minute = map(
+            int, match.groups()
+        )
+
+        if (
+            start_hour > 24
+            or end_hour > 24
+            or start_minute > 59
+            or end_minute > 59
+            or (start_hour == 24 and start_minute != 0)
+            or (end_hour == 24 and end_minute != 0)
+        ):
+            continue
+
+        start = start_hour * 60 + start_minute
+        end = end_hour * 60 + end_minute
+
+        if end == 0:
+            end = 24 * 60
+
+        if start <= end:
+            if start <= current_minutes < end:
+                return True
+        else:
+            # Support opening hours that cross midnight.
+            if current_minutes >= start or current_minutes < end:
+                return True
+
+    return False
+
 def parse_rows(rows: Sequence[Sequence[object]]) -> ParseResult:
     """Read the first nonempty row as headers; warnings use Excel row numbers.
 
@@ -434,6 +492,8 @@ def filter_restaurants(restaurants: Sequence[Restaurant], filters: Filters) -> l
     result = []
     for restaurant in restaurants:
         if restaurant.is_closed and not filters.include_closed:
+            continue
+        if filters.open_now_only and not is_open_now(restaurant.opening_hours):
             continue
         if restaurant.area == "nearby" and restaurant.distance is not None:
             if not math.isfinite(restaurant.distance) or not 0 <= restaurant.distance <= 2:
